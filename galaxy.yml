@@ -1,0 +1,26 @@
+---
+namespace: delinea
+name: core
+version: 1.0.0
+readme: README.md
+authors:
+  - Delinea (https://delinea.com/)
+description: Delinea Collection for Ansible.
+license:
+  - GPL-3.0-or-later
+tags: [delinea, dsv]
+
+# The URL of the originating SCM repository
+repository: http://example.com/repository
+
+# The URL to any online docs
+documentation: http://docs.example.com
+
+# The URL to the homepage of the collection/project
+homepage: http://example.com
+
+# The URL to the collection issue tracker
+issues: http://example.com/issue/tracker
+
+build_ignore:
+  - .gitignore

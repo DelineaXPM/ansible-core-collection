@@ -1,0 +1,26 @@
+---
+name: lint
+on:
+  pull_request:
+  workflow_dispatch:
+concurrency:
+  group: ${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  golangci-lint:
+    name: runner / golangci-lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: checkout
+        uses: actions/checkout@v3
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.6
+      - name: ansible-lint
+        uses: reviewdog/action-ansiblelint@v1.4.2
+        with:
+          github_token: ${{ secrets.github_token }}
+          reporter: github-pr-review # Change reporter.
+          ansiblelint_flags: -x core playbook/*
+          # customize ansible lint with: https://ansible-lint.readthedocs.io/en/latest/configuring/
