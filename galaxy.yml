@@ -10,17 +10,20 @@ license:
   - GPL-3.0-or-later
 tags: [delinea, dsv]
 
-# The URL of the originating SCM repository
-repository: http://example.com/repository
-
-# The URL to any online docs
-documentation: http://docs.example.com
-
-# The URL to the homepage of the collection/project
-homepage: http://example.com
-
-# The URL to the collection issue tracker
-issues: http://example.com/issue/tracker
+repository: https://github.com/DelineaXPM/ansible-core-collection
+documentation: https://github.com/DelineaXPM/ansible-core-collection
+homepage: https://github.com/DelineaXPM/ansible-core-collection
+issues: https://github.com/DelineaXPM/ansible-core-collection/issues
 
 build_ignore:
+  - .flake8
+  - .gitattributes
+  - .github
   - .gitignore
+  - .gitleaks.toml
+  - .markdownlint-cli2.yaml
+  - .pre-commit-config.yaml
+  - .yamllint.yaml
+  - go.mod
+  - go.sum
+  - magefile.go

@@ -6,7 +6,7 @@
 >
 > UNTIL THIS NOTICE IS REMOVED THIS IS BEING ACTIVELY DEVELOPED AND IS NOT A FINAL PRODUCTION RELEASE.
 
-Ansible core collection for Delinea DevOps Secret Vault.
+Ansible core collection for Delinea DevOps Secrets Vault.
 
 ## Development
 
