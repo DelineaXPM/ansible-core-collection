@@ -17,3 +17,4 @@ issues: https://github.com/DelineaXPM/ansible-core-collection/issues
 
 build_ignore:
   - .gitignore
+  - .github
