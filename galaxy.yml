@@ -16,5 +16,14 @@ homepage: https://github.com/DelineaXPM/ansible-core-collection
 issues: https://github.com/DelineaXPM/ansible-core-collection/issues
 
 build_ignore:
-  - .gitignore
+  - .flake8
+  - .gitattributes
   - .github
+  - .gitignore
+  - .gitleaks.toml
+  - .markdownlint-cli2.yaml
+  - .pre-commit-config.yaml
+  - .yamllint.yaml
+  - go.mod
+  - go.sum
+  - magefile.go
