@@ -20,7 +20,7 @@ concurrency:
 env:
   NAMESPACE: delinea
   COLLECTION_NAME: core
-  PYTHON_VERSION: 3.10
+  PYTHON_VERSION: 3.10.6
 
 jobs:
   sanity:
