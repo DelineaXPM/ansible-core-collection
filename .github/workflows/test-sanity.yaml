@@ -41,6 +41,32 @@ jobs:
       # ansible-test requires the collection to be in a directory in the form
       # .../ansible_collections/${{env.NAMESPACE}}/${{env.COLLECTION_NAME}}/
 
+      # https://github.com/magnetikonline/action-golang-cache
+
+      # - name: Setup Golang with cache
+      #   uses: magnetikonline/action-golang-cache@v3
+      #   with:
+      #     go-version-file: go.mod
+
+      # - name: Set up Python
+      #   uses: actions/setup-python@v3
+      #   with:
+      #     # it is just required to run that once as "ansible-test sanity" in the docker image
+      #     # will run on all python versions it supports.
+      #     python-version: ${{ env.PYTHON_VERSION }}
+
+      # - name: install-ansible-base
+      #   uses: magefile/mage-action@v2
+      #   with:
+      #     version: latest
+      #     args: ansible:installbase ${{ matrix.ansible }}
+
+      # - name: run-sanity-tests
+      #   uses: magefile/mage-action@v2
+      #   with:
+      #     version: latest
+      #     args: ansible:test ${{ matrix.ansible }}
+
       - name: Check out code
         uses: actions/checkout@v3
         with:
