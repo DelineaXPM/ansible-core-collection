@@ -48,10 +48,10 @@ Note that if you install the collection from Ansible Galaxy, it will not be upgr
 ansible-galaxy collection install delinea.core --upgrade
 ```
 
-You can also install a specific version of the collection, for example, if you need to downgrade when something is broken in the latest version (please report an issue in this repository). Use the following syntax to install version `0.1.0`:
+You can also install a specific version of the collection, for example, if you need to downgrade when something is broken in the latest version (please report an issue in this repository). Use the following syntax to install version `1.0.0`:
 
 ```bash
-ansible-galaxy collection install delinea.core:==0.1.0
+ansible-galaxy collection install delinea.core:==1.0.0
 ```
 
 See [Ansible Using collections](https://docs.ansible.com/ansible/devel/user_guide/collections_using.html) for more details.
