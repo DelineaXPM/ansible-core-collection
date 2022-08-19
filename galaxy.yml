@@ -8,7 +8,17 @@ authors:
 description: Delinea Collection for Ansible.
 license:
   - GPL-3.0-or-later
-tags: [delinea, dsv]
+tags:
+  - delinea
+  - dsv
+  - vault
+  - cloud
+  - application
+  - security
+  - secret
+  - secrets
+  - password
+  - passwords
 
 repository: https://github.com/DelineaXPM/ansible-core-collection
 documentation: https://github.com/DelineaXPM/ansible-core-collection
