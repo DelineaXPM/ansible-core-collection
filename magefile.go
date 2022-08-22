@@ -81,19 +81,25 @@ func (Ansible) InstallInVenv() error {
 	if err := os.MkdirAll(VenvDirectory, 0755); err != nil {
 		return err
 	}
+
+	downloadLink := "https://github.com/ansible/ansible/archive/%s.tar.gz"
+
 	for _, version := range AnsibleVersions {
-		qualifiedVenvPath := filepath.Join(VenvDirectory, version)
-		pterm.Info.Printfln("installing requirements in qualifiedVenvPath: %s", qualifiedVenvPath)
-		if err := sh.RunWith(
-			map[string]string{
-				"VIRTUAL_ENV": qualifiedVenvPath,
-			},
-			"python3", "-m", "pip",
-			"install", fmt.Sprintf("https://github.com/ansible/ansible/archive/%s.tar.gz", version),
-			"--disable-pip-version-check",
-		); err != nil {
-			pterm.Error.Printfln("error installing ansible in venv %s: %v", qualifiedVenvPath, err)
+		venvPath := filepath.Join(VenvDirectory, version)
+		pypip := filepath.Join(venvPath, "bin", "pip")
+
+		pterm.Info.Printfln("installing requirements in venv: %s", venvPath)
+
+		err := sh.Run(pypip, "install", "wheel", "--disable-pip-version-check")
+		if err != nil {
+			pterm.Error.Printfln("error installing wheel in venv %s: %v", venvPath, err)
 		}
+
+		err = sh.Run(pypip, "install", fmt.Sprintf(downloadLink, version), "--disable-pip-version-check")
+		if err != nil {
+			pterm.Error.Printfln("error installing ansible in venv %s: %v", venvPath, err)
+		}
+
 		pterm.Success.Printfln("created venv for: %s", version)
 	}
 	pterm.Success.Println("(Python3) Init()")
@@ -139,7 +145,6 @@ func (Ansible) Test() {
 }
 
 // 📈 Coverage will run generate code coverage data for ansible-test.
-
 func (Ansible) Coverage() error {
 	return sh.Run("python3", "-m", "ansible-test", "coverage", "coverage", "xml", "-v", "--requirements", "--group-by", "command", "--group-by", "version")
 }
