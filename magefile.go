@@ -86,7 +86,7 @@ func (Ansible) InstallInVenv() error {
 
 	for _, version := range AnsibleVersions {
 		venvPath := filepath.Join(VenvDirectory, version)
-		pypip := filepath.Join(venvPath, "bin", "pip")
+		pypip := filepath.Join(venvPath, "bin", "pip3")
 
 		pterm.Info.Printfln("installing requirements in venv: %s", venvPath)
 
