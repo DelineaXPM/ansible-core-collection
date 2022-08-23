@@ -128,12 +128,12 @@ func (Ansible) InstallBase(target string) error {
 
 // 🧪 TestSanity will run ansible-test with the docker option.
 func (Ansible) TestSanity() error {
-	return sh.Run("python3", "-m", "ansible-test", "sanity", "--docker", "-v", "--color", "--coverage")
+	return sh.Run("ansible-test", "sanity", "--docker", "-v", "--color", "--coverage")
 }
 
 // 🧪 TestUnit will run ansible-test with the docker option.
 func (Ansible) TestUnit() error {
-	return sh.Run("python3", "-m", "ansible-test", "unit", "--docker", "-v", "--color", "--coverage")
+	return sh.Run("ansible-test", "unit", "--docker", "-v", "--color", "--coverage")
 }
 
 // 🧪 Test will run both unit and Sanity tests.
@@ -146,5 +146,5 @@ func (Ansible) Test() {
 
 // 📈 Coverage will run generate code coverage data for ansible-test.
 func (Ansible) Coverage() error {
-	return sh.Run("python3", "-m", "ansible-test", "coverage", "coverage", "xml", "-v", "--requirements", "--group-by", "command", "--group-by", "version")
+	return sh.Run("ansible-test", "coverage", "coverage", "xml", "-v", "--requirements", "--group-by", "command", "--group-by", "version")
 }
