@@ -1,5 +1,5 @@
 ---
-name: test-sanity
+name: test-unit
 on:
   # Run CI against all pushes (direct commits, also merged PRs), Pull Requests
   push:
@@ -18,7 +18,7 @@ env:
   COLLECTION_NAME: core
   PYTHON_VERSION: 3.10
 concurrency:
-  group: ${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   unit:

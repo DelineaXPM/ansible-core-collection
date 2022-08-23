@@ -56,4 +56,5 @@ noProgress: true
 
 # Use a specific formatter (only valid at root)
 outputFormatters:
-  -   - markdownlint-cli2-formatter-default
+  -
+    - markdownlint-cli2-formatter-default
