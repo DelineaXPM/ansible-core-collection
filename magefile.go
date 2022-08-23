@@ -27,6 +27,7 @@ var (
 		"stable-2.10",
 		"stable-2.11",
 		"stable-2.12",
+		"stable-2.13",
 		"devel",
 	}
 )
@@ -114,6 +115,7 @@ func (Ansible) InstallBase(target string) error {
 			"- stable-2.10\n" +
 			"- stable-2.11\n" +
 			"- stable-2.12\n" +
+			"- stable-2.13\n" +
 			"- devel\n",
 		)
 		return fmt.Errorf("missing parameter for InstallBase")
