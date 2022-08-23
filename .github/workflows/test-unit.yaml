@@ -1,5 +1,5 @@
 ---
-name: test-sanity
+name: test-unit
 on:
   # Run CI against all pushes (direct commits, also merged PRs), Pull Requests
   push:
