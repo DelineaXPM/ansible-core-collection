@@ -3,10 +3,6 @@
 # Copyright: (c) 2020, Adam Migus <adam@migus.org>
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
-from ansible.errors import AnsibleError, AnsibleOptionsError
-from ansible.utils.display import Display
-from ansible.plugins.lookup import LookupBase
-
 
 __metaclass__ = type
 
@@ -90,6 +86,9 @@ EXAMPLES = r"""
           msg: 'the password is {{ secret["data"]["password"] }}'
 """
 
+from ansible.errors import AnsibleError, AnsibleOptionsError
+from ansible.utils.display import Display
+from ansible.plugins.lookup import LookupBase
 
 sdk_is_missing = False
 
