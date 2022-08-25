@@ -5,11 +5,14 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 
 	"github.com/magefile/mage/mg"
 	"github.com/magefile/mage/sh"
 	"github.com/pterm/pterm"
+
+	"github.com/bitfield/script"
 )
 
 const (
@@ -18,6 +21,12 @@ const (
 
 	// VenvDirectory is the directory to keep the Ansible virtual environments.
 	VenvDirectory = ".cache"
+
+	// Namespace is the ansible collection namespace.
+	Namespace = "delinea"
+
+	//Collection is the ansible collection name.
+	Collection = "core"
 )
 
 var (
@@ -31,6 +40,18 @@ var (
 		"devel",
 	}
 )
+
+// Ansible contains the commands for automation with Ansible.
+type Ansible mg.Namespace
+
+// Venv contains commands that are specifically isolated to the target venv.
+type Venv mg.Namespace
+
+// Py contains the python related commands not specific for venv.
+type Py mg.Namespace
+
+// Job contains grouped sets of commands to simplify workflow
+type Job mg.Namespace
 
 func Init() error {
 
@@ -47,9 +68,6 @@ func Clean() {
 	pterm.Success.Println("reset .artifacts and .cache/ directories")
 }
 
-// Ansible contains the commands for automation with Ansible.
-type Ansible mg.Namespace
-
 // ➕ InstallCollection will install the collection.
 func (Ansible) InstallCollection() error {
 	return sh.Run("ansible-galaxy", "collection", "install", collectionName)
@@ -60,10 +78,8 @@ func (Ansible) UninstallCollection() error {
 	return sh.Run("ansible-galaxy", "collection", "install", collectionName)
 }
 
-type Python3 mg.Namespace
-
 // 🐍 Init sets up the venv environment (without Ansible yet).
-func (Python3) Init() error {
+func (Py) Init() error {
 	if err := os.MkdirAll(VenvDirectory, 0755); err != nil {
 		return err
 	}
@@ -74,11 +90,11 @@ func (Python3) Init() error {
 		}
 		pterm.Success.Printfln("created venv for: %s", version)
 	}
-	pterm.Success.Println("(Python3) Init()")
+	pterm.Success.Println("(Py) Init()")
 	return nil
 }
 
-func (Ansible) InstallInVenv() error {
+func (Venv) Install() error {
 	if err := os.MkdirAll(VenvDirectory, 0755); err != nil {
 		return err
 	}
@@ -103,7 +119,7 @@ func (Ansible) InstallInVenv() error {
 
 		pterm.Success.Printfln("created venv for: %s", version)
 	}
-	pterm.Success.Println("(Python3) Init()")
+	pterm.Success.Println("(Venv) Init()")
 	return nil
 }
 
@@ -149,4 +165,61 @@ func (Ansible) Test() {
 // 📈 Coverage will run generate code coverage data for ansible-test.
 func (Ansible) Coverage() error {
 	return sh.Run("ansible-test", "coverage", "coverage", "xml", "-v", "--requirements", "--group-by", "command", "--group-by", "version")
+}
+
+// Setup creates the python venv and installs all the target ansible versions in each.
+func (Job) Setup() {
+
+	mg.SerialDeps(
+		Py{}.Init,
+		Venv{}.Install,
+	)
+}
+
+// 🧪 TestSanity will run ansible-test with the docker option.
+func (Venv) TestSanity() error {
+
+	for _, version := range AnsibleVersions {
+		venvPath := filepath.Join(VenvDirectory, version)
+		ansibleTest := filepath.Join(venvPath, "bin", "ansible-test")
+		activate := filepath.Join(venvPath, "bin", "activate")
+
+		// deactivate := filepath.Join(venvPath, "bin", "deactivate")
+
+		// if err := sh.Run(activate); err != nil {
+		// 	return err
+		// }
+		ansibleTestPath, err := filepath.Abs(ansibleTest)
+		if err != nil {
+			pterm.Warning.Printfln("error in creating ansibleTestPath: %v", err)
+		}
+
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return err
+		}
+		// cmd := fmt.Sprintf("%s sanity --docker -v --color --coverage", ansibleTestPath)
+		// pterm.Info.Printfln("running: %s", cmd)
+		script.Exec(activate).Stdout()
+		pterm.Info.Printfln("ansibletestPath: %s", ansibleTestPath)
+		cmd := exec.Cmd{
+			Path:   ansibleTestPath,
+			Dir:    filepath.Join(homeDir, ".ansible", "collections", "ansible_collections", Namespace, Collection),
+			Args:   []string{"", "sanity", "--docker", "-v", "--color", "--coverage"},
+			Stdout: os.Stdout,
+			Stderr: os.Stdout,
+		}
+
+		pterm.Info.Printfln("cmd: %v", cmd.String())
+		if err := cmd.Run(); err != nil {
+			return err
+		}
+		// if err := sh.Run(ansibleTest, "sanity", "--docker", "-v", "--color", "--coverage"); err != nil {
+		// 	return err
+		// }
+		// if err := sh.Run(deactivate); err != nil {
+		// 	return err
+		// }
+	}
+	return nil
 }
