@@ -2,10 +2,6 @@
 
 ![GitHub pull requests](https://img.shields.io/github/issues-pr-raw/delineaxpm/ansible-core-collection?style=for-the-badge)
 
-> ***Warning***
->
-> UNTIL THIS NOTICE IS REMOVED THIS IS BEING ACTIVELY DEVELOPED AND IS NOT A FINAL PRODUCTION RELEASE.
-
 Ansible core collection for Delinea DevOps Secrets Vault.
 
 ## Development
