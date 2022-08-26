@@ -231,7 +231,7 @@ func (Venv) TestSanity() error {
 		pterm.Debug.Printfln("running: %s", activate)
 		// script.Exec(activate).Stdout()
 
-		pterm.Debug.Printfln("ansibletestPath: %s", ansibleTestPath)
+		pterm.Debug.Printfln("ansibleTestPath: %s", ansibleTestPath)
 		targetDirectory := filepath.Join(
 			homeDir,
 			".ansible",
