@@ -2,10 +2,6 @@
 
 ![GitHub pull requests](https://img.shields.io/github/issues-pr-raw/delineaxpm/ansible-core-collection?style=for-the-badge)
 
-> ***Warning***
->
-> UNTIL THIS NOTICE IS REMOVED THIS IS BEING ACTIVELY DEVELOPED AND IS NOT A FINAL PRODUCTION RELEASE.
-
 Ansible core collection for Delinea DevOps Secrets Vault.
 
 ## Development
@@ -15,6 +11,8 @@ Ansible core collection for Delinea DevOps Secrets Vault.
     - For a quick install if you have Go 1.17+ installed run `go install github.com/magefile/mage@latest`.
     - Run `mage init` to setup.
     - Run `mage -l` to list tasks.
+
+Run local dockerized tests with: `mage job:setup venv:testsanity`.
 
 ## Included content
 

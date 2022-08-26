@@ -34,9 +34,9 @@ repos:
       - id: check-yaml
       - id: check-json
         exclude: ^.vscode/
-      - id: pretty-format-json
-        exclude: ^.vscode/
-        args: [--fix]
+      # - id: pretty-format-json
+      #   exclude: ^.vscode/
+      #   args: [--fix]
       # - id: detect-private-key
       - id: end-of-file-fixer
       - id: fix-byte-order-marker
@@ -64,3 +64,41 @@ repos:
     rev: 3.7.9
     hooks:
       - id: flake8
+  - repo: https://gitlab.com/bmares/check-json5
+    rev: v1.0.0
+    hooks:
+      - id: check-json5
+  - repo: local
+    hooks:
+      - id: golines
+        name: go-fmt
+        description: Run formatter against changed files
+        entry: golines --base-formatter="gofumpt" -w --max-len=120 --no-reformat-tags
+        types: [go]
+        language: system
+        pass_filenames: true
+      - id: go-mod-tidy
+        name: go-mod-tidy
+        description: Run go mod tidy
+        entry: go mod tidy
+        stages: [commit]
+        types: [go]
+        language: golang
+        pass_filenames: false
+        verbose: true
+      - id: golangci-lint
+        name: golangci-lint
+        description: Fast linters runner for Go.
+        entry: golangci-lint run --fix --timeout 15s --new-from-rev=HEAD~
+        types: [go]
+        language: system
+        pass_filenames: false
+  - repo: local
+    hooks:
+      - id: ansibletest
+        name: ansible-test-sanity
+        description: Run sanity tests with venv and doker
+        entry: mage venv:testsanity
+        types: [python]
+        language: system
+        pass_filenames: false
