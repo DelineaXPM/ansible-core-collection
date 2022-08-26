@@ -7,12 +7,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strings"
 
 	"github.com/magefile/mage/mg"
 	"github.com/magefile/mage/sh"
 	"github.com/pterm/pterm"
-
-	"github.com/bitfield/script"
+	"github.com/sheldonhull/magetools/gotools"
+	"github.com/sheldonhull/magetools/pkg/magetoolsutils"
 )
 
 const (
@@ -25,21 +27,18 @@ const (
 	// Namespace is the ansible collection namespace.
 	Namespace = "delinea"
 
-	//Collection is the ansible collection name.
+	// Collection is the ansible collection name.
 	Collection = "core"
 )
 
-var (
-
-	// AnsibleVersions is a list of Ansible versions to test and create virtual environments for.
-	AnsibleVersions = []string{
-		"stable-2.10",
-		"stable-2.11",
-		"stable-2.12",
-		"stable-2.13",
-		"devel",
-	}
-)
+// AnsibleVersions is a list of Ansible versions to test and create virtual environments for.
+var AnsibleVersions = []string{
+	"stable-2.10",
+	"stable-2.11",
+	"stable-2.12",
+	"stable-2.13",
+	"devel",
+}
 
 // Ansible contains the commands for automation with Ansible.
 type Ansible mg.Namespace
@@ -53,8 +52,17 @@ type Py mg.Namespace
 // Job contains grouped sets of commands to simplify workflow
 type Job mg.Namespace
 
-func Init() error {
+func checklinux() {
+	if runtime.GOOS != "Linux" {
+		_ = mg.Fatalf(1, "this command is only supported on Linux and you are on: %s", runtime.GOOS)
+	}
+}
 
+func Init() error {
+	magetoolsutils.CheckPtermDebug()
+	mg.SerialDeps(
+		gotools.Go{}.Init,
+	)
 	pterm.Success.Println("Init()")
 	return nil
 }
@@ -164,23 +172,36 @@ func (Ansible) Test() {
 
 // 📈 Coverage will run generate code coverage data for ansible-test.
 func (Ansible) Coverage() error {
-	return sh.Run("ansible-test", "coverage", "coverage", "xml", "-v", "--requirements", "--group-by", "command", "--group-by", "version")
+	return sh.Run(
+		"ansible-test",
+		"coverage",
+		"coverage",
+		"xml",
+		"-v",
+		"--requirements",
+		"--group-by",
+		"command",
+		"--group-by",
+		"version",
+	)
 }
 
 // Setup creates the python venv and installs all the target ansible versions in each.
 func (Job) Setup() {
-
 	mg.SerialDeps(
 		Py{}.Init,
 		Venv{}.Install,
 	)
 }
 
-// 🧪 TestSanity will run ansible-test with the docker option.
+// 🧪 TestSanity will run ansible-test with the docker option, using the provided venv.
 func (Venv) TestSanity() error {
-
+	magetoolsutils.CheckPtermDebug()
+	// needs linux as i don't handle different env path setup
+	checklinux()
 	for _, version := range AnsibleVersions {
 		venvPath := filepath.Join(VenvDirectory, version)
+		venvPathBin := filepath.Join(venvPath, "bin")
 		ansibleTest := filepath.Join(venvPath, "bin", "ansible-test")
 		activate := filepath.Join(venvPath, "bin", "activate")
 
@@ -191,7 +212,7 @@ func (Venv) TestSanity() error {
 		// }
 		ansibleTestPath, err := filepath.Abs(ansibleTest)
 		if err != nil {
-			pterm.Warning.Printfln("error in creating ansibleTestPath: %v", err)
+			pterm.Warning.Printfln("error in resolving abs ansibleTestPath: %v", err)
 		}
 
 		homeDir, err := os.UserHomeDir()
@@ -200,23 +221,54 @@ func (Venv) TestSanity() error {
 		}
 		// cmd := fmt.Sprintf("%s sanity --docker -v --color --coverage", ansibleTestPath)
 		// pterm.Info.Printfln("running: %s", cmd)
-		script.Exec(activate).Stdout()
-		pterm.Info.Printfln("ansibletestPath: %s", ansibleTestPath)
-		cmd := exec.Cmd{
-			Path:   ansibleTestPath,
-			Dir:    filepath.Join(homeDir, ".ansible", "collections", "ansible_collections", Namespace, Collection),
-			Args:   []string{"", "sanity", "--docker", "-v", "--color", "--coverage"},
-			Stdout: os.Stdout,
-			Stderr: os.Stdout,
-		}
-
-		pterm.Info.Printfln("cmd: %v", cmd.String())
-		if err := cmd.Run(); err != nil {
+		_ = os.Setenv("VIRTUAL_ENV", venvPath)
+		pathVar := os.Getenv("PATH")
+		newPath := strings.Join([]string{venvPathBin, pathVar}, ":") // NOTE: works for mac/linx
+		if err := os.Setenv("PATH", newPath); err != nil {
 			return err
 		}
-		// if err := sh.Run(ansibleTest, "sanity", "--docker", "-v", "--color", "--coverage"); err != nil {
-		// 	return err
-		// }
+		pterm.Debug.Printfln("PATH: %s", newPath)
+		pterm.Debug.Printfln("running: %s", activate)
+		// script.Exec(activate).Stdout()
+
+		pterm.Debug.Printfln("ansibletestPath: %s", ansibleTestPath)
+		targetDirectory := filepath.Join(
+			homeDir,
+			".ansible",
+			"collections",
+			"ansible_collections",
+			Namespace,
+			Collection,
+		)
+
+		if _, err := os.Stat(targetDirectory); os.IsNotExist(err) {
+			pterm.Error.Println(
+				"the target collection doesn't exist. It's likey you need to run:\n\n\tmage ansible:installcollection",
+			)
+		}
+		workingdir := filepath.Join(homeDir, ".ansible", "collections", "ansible_collections", Namespace, Collection)
+		pterm.Debug.Printfln("ansible-test working directory: %s", workingdir)
+		cmd := exec.Cmd{
+			Path: ansibleTestPath,
+			Dir:  workingdir,
+			Args: []string{
+				"",
+				"sanity",
+				"--docker",
+				"-v",
+				"--color",
+				"--coverage",
+			}, // empty string required to avoid subcommand without flags disappearing
+			Stdout: os.Stdout,
+			Stderr: os.Stdout,
+			Env: []string{
+				fmt.Sprintf("PATH=%s", newPath),
+				fmt.Sprintf("VIRTUAL_ENV=%s", venvPath),
+				fmt.Sprintf("HOME=%s", homeDir),
+			},
+		}
+		pterm.Info.Printfln("cmd: %v", cmd.String())
+
 		// if err := sh.Run(deactivate); err != nil {
 		// 	return err
 		// }
