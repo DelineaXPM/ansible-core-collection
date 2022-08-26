@@ -8,7 +8,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strings"
 
 	"github.com/magefile/mage/mg"
 	"github.com/magefile/mage/sh"
@@ -205,11 +204,6 @@ func (Venv) TestSanity() error {
 		ansibleTest := filepath.Join(venvPath, "bin", "ansible-test")
 		activate := filepath.Join(venvPath, "bin", "activate")
 
-		// deactivate := filepath.Join(venvPath, "bin", "deactivate")
-
-		// if err := sh.Run(activate); err != nil {
-		// 	return err
-		// }
 		ansibleTestPath, err := filepath.Abs(ansibleTest)
 		if err != nil {
 			pterm.Warning.Printfln("error in resolving abs ansibleTestPath: %v", err)
@@ -219,8 +213,7 @@ func (Venv) TestSanity() error {
 		if err != nil {
 			return err
 		}
-		// cmd := fmt.Sprintf("%s sanity --docker -v --color --coverage", ansibleTestPath)
-		// pterm.Info.Printfln("running: %s", cmd)
+
 		_ = os.Setenv("VIRTUAL_ENV", venvPath)
 		pathVar := os.Getenv("PATH")
 		newPath := venvPathBin + ":" + pathVar // NOTE: works for mac/linux
@@ -229,10 +222,9 @@ func (Venv) TestSanity() error {
 		}
 		pterm.Debug.Printfln("PATH: %s", newPath)
 		pterm.Debug.Printfln("running: %s", activate)
-		// script.Exec(activate).Stdout()
 
 		pterm.Debug.Printfln("ansibleTestPath: %s", ansibleTestPath)
-		targetDirectory := filepath.Join(
+		collectionDirectory := filepath.Join(
 			homeDir,
 			".ansible",
 			"collections",
@@ -241,16 +233,15 @@ func (Venv) TestSanity() error {
 			Collection,
 		)
 
-		if _, err := os.Stat(targetDirectory); os.IsNotExist(err) {
+		if _, err := os.Stat(collectionDirectory); os.IsNotExist(err) {
 			pterm.Error.Println(
 				"the target collection doesn't exist. It's likey you need to run:\n\n\tmage ansible:installcollection",
 			)
 		}
-		workingdir := filepath.Join(homeDir, ".ansible", "collections", "ansible_collections", Namespace, Collection)
-		pterm.Debug.Printfln("ansible-test working directory: %s", workingdir)
+
 		cmd := exec.Cmd{
 			Path: ansibleTestPath,
-			Dir:  workingdir,
+			Dir:  collectionDirectory,
 			Args: []string{
 				"",
 				"sanity",
@@ -269,9 +260,6 @@ func (Venv) TestSanity() error {
 		}
 		pterm.Info.Printfln("cmd: %v", cmd.String())
 
-		// if err := sh.Run(deactivate); err != nil {
-		// 	return err
-		// }
 	}
 	return nil
 }

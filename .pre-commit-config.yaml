@@ -86,6 +86,13 @@ repos:
         language: golang
         pass_filenames: false
         verbose: true
+      - id: golangci-lint
+        name: golangci-lint
+        description: Fast linters runner for Go.
+        entry: golangci-lint run --fix --timeout 15s --new-from-rev=HEAD~
+        types: [go]
+        language: system
+        pass_filenames: false
   - repo: local
     hooks:
       - id: ansibletest
