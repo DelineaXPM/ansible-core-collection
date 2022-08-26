@@ -223,7 +223,7 @@ func (Venv) TestSanity() error {
 		// pterm.Info.Printfln("running: %s", cmd)
 		_ = os.Setenv("VIRTUAL_ENV", venvPath)
 		pathVar := os.Getenv("PATH")
-		newPath := strings.Join([]string{venvPathBin, pathVar}, ":") // NOTE: works for mac/linx
+		newPath := venvPathBin + ":" + pathVar // NOTE: works for mac/linux
 		if err := os.Setenv("PATH", newPath); err != nil {
 			return err
 		}
