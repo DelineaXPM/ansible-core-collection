@@ -31,9 +31,12 @@ build_ignore:
   - .github
   - .gitignore
   - .gitleaks.toml
+  - .golangci.yml
   - .markdownlint-cli2.yaml
   - .pre-commit-config.yaml
+  - .whitesource
   - .yamllint.yaml
   - go.mod
   - go.sum
   - magefile.go
+  - renovate.json
