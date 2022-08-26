@@ -174,7 +174,6 @@ func (Ansible) Coverage() error {
 	return sh.Run(
 		"ansible-test",
 		"coverage",
-		"coverage",
 		"xml",
 		"-v",
 		"--requirements",
