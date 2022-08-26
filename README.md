@@ -12,6 +12,8 @@ Ansible core collection for Delinea DevOps Secrets Vault.
     - Run `mage init` to setup.
     - Run `mage -l` to list tasks.
 
+Run local dockerized tests with: `mage job:setup venv:testsanity`.
+
 ## Included content
 
 ### Lookup plugins
