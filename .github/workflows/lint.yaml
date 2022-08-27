@@ -18,7 +18,7 @@ jobs:
         with:
           python-version: 3.6
       - name: ansible-lint
-        uses: reviewdog/action-ansiblelint@v1.4.2
+        uses: reviewdog/action-ansiblelint@v1.6.1
         with:
           github_token: ${{ secrets.github_token }}
           reporter: github-pr-review # Change reporter.
