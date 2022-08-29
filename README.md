@@ -1,8 +1,10 @@
-# ansible-core-collection
+# Ansible Collection - delinea.core
 
 ![GitHub pull requests](https://img.shields.io/github/issues-pr-raw/delineaxpm/ansible-core-collection?style=for-the-badge)
 
-Ansible core collection for Delinea DevOps Secrets Vault.
+## Includes
+
+- Ansible core collection for Delinea DevOps Secrets Vault.
 
 ## Development
 
