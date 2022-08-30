@@ -18,3 +18,4 @@ ignore: |
   .markdownlint-cli2.yaml
   .licenses/
   docs/godocs/
+  changelogs/config.yaml
