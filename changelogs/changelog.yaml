@@ -1,0 +1,15 @@
+---
+ancestor:
+releases:
+  1.0.0:
+    changes:
+      release_summary: |
+        New plugin for getting secrets from Delinea DevOps Secrets Vault in Ansible.
+    fragments:
+      - 1.0.0.yml
+    plugins:
+      lookup:
+        - description: Get secrets from Delinea DevOps Secrets Vault
+          name: dsv
+          namespace:
+    release_date: '2022-08-30'

@@ -13,6 +13,7 @@
     - For a quick install if you have Go 1.17+ installed run `go install github.com/magefile/mage@latest`.
     - Run `mage init` to setup.
     - Run `mage -l` to list tasks.
+    - Run `mage ansible:changelog` to generate a new release_summary fragment interactively.
 
 Run local dockerized tests with: `mage job:setup venv:testsanity`.
 

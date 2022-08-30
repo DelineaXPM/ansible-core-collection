@@ -28,6 +28,14 @@ const (
 
 	// Collection is the ansible collection name.
 	Collection = "core"
+	// VenvToolingDirectory is the venv for tooling.
+	VenvToolingDirectory = "tooling"
+
+	// PermissionUserReadWriteExecute is the octal permission for read, write, & execute only for owner.
+	PermissionUserReadWriteExecute = 0o0700
+
+	// changelogFragments is the directory to store user created changelog fragments.
+	changelogFragments = "changelogs/fragments"
 )
 
 // AnsibleVersions is a list of Ansible versions to test and create virtual environments for.
@@ -52,16 +60,18 @@ type Py mg.Namespace
 type Job mg.Namespace
 
 func checklinux() {
-	if runtime.GOOS != "Linux" {
-		_ = mg.Fatalf(1, "this command is only supported on Linux and you are on: %s", runtime.GOOS)
+	if runtime.GOOS == "windows" {
+		_ = mg.Fatalf(1, "this command is only supported on Linux or Darwin and you are on: %s", runtime.GOOS)
 	}
 }
 
 func Init() error {
 	magetoolsutils.CheckPtermDebug()
-	mg.SerialDeps(
+
+	mg.Deps(
 		gotools.Go{}.Init,
 	)
+
 	pterm.Success.Println("Init()")
 	return nil
 }
@@ -85,11 +95,86 @@ func (Ansible) UninstallCollection() error {
 	return sh.Run("ansible-galaxy", "collection", "install", collectionName)
 }
 
-// 🐍 Init sets up the venv environment (without Ansible yet).
-func (Py) Init() error {
+// initVenvParentDirectory is the directory containing all the venv directories for various versions.
+func initVenvParentDirectory() error {
 	if err := os.MkdirAll(VenvDirectory, 0755); err != nil {
 		return err
 	}
+	return nil
+}
+
+// Changelog is the directory for tooling like ansibull-changelog.
+//
+// The first time you run this, you have to initialize the changelog via: `.cache/tooling/bin/antsibull-changelog init .`
+func (Ansible) Changelog() error {
+	magetoolsutils.CheckPtermDebug()
+
+	checklinux()
+	pterm.DefaultHeader.Println("Changelog()")
+
+	// No fancy semver matching, just trust the input.
+	pterm.Info.Println("Enter semver version (example: 1.0.x)")
+	versionSemver, _ := pterm.DefaultInteractiveTextInput.
+		WithMultiLine(false).Show()
+	pterm.Info.Printfln("You answered: %s", versionSemver)
+
+	changelogFragmentFile := filepath.Join(changelogFragments, versionSemver+".yml")
+
+	pterm.Info.Println("Enter release summary")
+	releaseNotes, _ := pterm.DefaultInteractiveTextInput.
+		WithMultiLine(true).Show()
+	pterm.Info.Printfln("You answered: %s", releaseNotes)
+
+	if err := os.WriteFile(changelogFragmentFile, []byte("---\nrelease_summary:\n    "+releaseNotes), PermissionUserReadWriteExecute); err != nil {
+		return err
+	}
+	venvPath := filepath.Join(VenvDirectory, VenvToolingDirectory)
+	venvPathBin := filepath.Join(venvPath, "bin")
+	pypip := filepath.Join(venvPath, "bin", "pip3")
+
+	if err := sh.Run("python3", "-m", "venv", venvPath); err != nil {
+		pterm.Error.Printfln("error installing requirements: %s", err)
+		return err
+	}
+	pterm.Success.Printfln("initialized venvpath: %s", venvPath)
+	if err := sh.Run(pypip, "install", "antsibull-changelog", "--disable-pip-version-check"); err != nil {
+		pterm.Error.Printfln("error installing wheel in venv %s: %v", venvPath, err)
+		return err
+	}
+	pterm.Success.Println("installed antsibull-changelog")
+	// venvPathBin := filepath.Join(venvPath, "bin")
+	antsibullchangelog := filepath.Join(venvPath, "bin", "antsibull-changelog")
+
+	pathVar := os.Getenv("PATH")
+	newPath := venvPathBin + ":" + pathVar // NOTE: works for mac/linux
+
+	cmd := exec.Cmd{
+		Path: antsibullchangelog,
+		Args: []string{
+			"", // without blank go trims out the subcommand as no flag.
+			"release",
+		},
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
+		Env: []string{
+			fmt.Sprintf("PATH=%s", newPath),
+			fmt.Sprintf("VIRTUAL_ENV=%s", venvPath),
+		},
+	}
+	pterm.Debug.Printfln("cmd: %v", cmd.String())
+	if err := cmd.Run(); err != nil {
+		pterm.Warning.Printfln("error: %v", err)
+	}
+	pterm.Success.Printfln("created venv for: %s", VenvToolingDirectory)
+	return nil
+}
+
+// 🐍 Init sets up the venv environment (without Ansible yet).
+func (Py) Init() error {
+	if err := initVenvParentDirectory(); err != nil {
+		return err
+	}
+
 	for _, version := range AnsibleVersions {
 		if err := sh.Run("python3", "-m", "venv", filepath.Join(VenvDirectory, version)); err != nil {
 			pterm.Error.Printfln("error installing requirements: %s", err)
@@ -97,6 +182,7 @@ func (Py) Init() error {
 		}
 		pterm.Success.Printfln("created venv for: %s", version)
 	}
+
 	pterm.Success.Println("(Py) Init()")
 	return nil
 }
@@ -197,6 +283,15 @@ func (Venv) TestSanity() error {
 	magetoolsutils.CheckPtermDebug()
 	// needs linux as i don't handle different env path setup
 	checklinux()
+	prog, _ := pterm.DefaultProgressbar.
+		WithTitle("running ansible-test").
+		WithTotal(len(AnsibleVersions)).
+		WithCurrent(0).
+		WithMaxWidth(pterm.GetTerminalWidth() / 2).
+		WithTitle("TestSanity").
+		WithRemoveWhenDone(false).
+		WithShowElapsedTime(true).Start()
+
 	for _, version := range AnsibleVersions {
 		venvPath := filepath.Join(VenvDirectory, version)
 		venvPathBin := filepath.Join(venvPath, "bin")
@@ -219,9 +314,9 @@ func (Venv) TestSanity() error {
 		if err := os.Setenv("PATH", newPath); err != nil {
 			return err
 		}
+
 		pterm.Debug.Printfln("PATH: %s", newPath)
 		pterm.Debug.Printfln("running: %s", activate)
-
 		pterm.Debug.Printfln("ansibleTestPath: %s", ansibleTestPath)
 		collectionDirectory := filepath.Join(
 			homeDir,
@@ -237,6 +332,7 @@ func (Venv) TestSanity() error {
 				"the target collection doesn't exist. It's likey you need to run:\n\n\tmage ansible:installcollection",
 			)
 		}
+		prog.UpdateTitle(fmt.Sprintf("ansible-test: %s", version))
 
 		cmd := exec.Cmd{
 			Path: ansibleTestPath,
@@ -249,15 +345,21 @@ func (Venv) TestSanity() error {
 				"--color",
 				"--coverage",
 			}, // empty string required to avoid subcommand without flags disappearing
-			Stdout: os.Stdout,
-			Stderr: os.Stdout,
+			Stdout: nil,
+			Stderr: os.Stderr,
 			Env: []string{
 				fmt.Sprintf("PATH=%s", newPath),
 				fmt.Sprintf("VIRTUAL_ENV=%s", venvPath),
 				fmt.Sprintf("HOME=%s", homeDir),
 			},
 		}
-		pterm.Info.Printfln("cmd: %v", cmd.String())
+		pterm.Debug.Printfln("cmd: %v", cmd.String())
+
+		prog.Increment()
+
+		if err := cmd.Run(); err != nil {
+			pterm.Warning.Printfln("error: %v", err)
+		}
 
 	}
 	return nil
