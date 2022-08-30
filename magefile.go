@@ -12,6 +12,8 @@ import (
 	"github.com/magefile/mage/mg"
 	"github.com/magefile/mage/sh"
 	"github.com/pterm/pterm"
+
+	// mage:import
 	"github.com/sheldonhull/magetools/gotools"
 	"github.com/sheldonhull/magetools/pkg/magetoolsutils"
 )
@@ -33,6 +35,9 @@ const (
 
 	// PermissionUserReadWriteExecute is the octal permission for read, write, & execute only for owner.
 	PermissionUserReadWriteExecute = 0o0700
+
+	// PermissionReadWriteSearchAll is the octal permission for all users to read, write, and search a file.
+	PermissionReadWriteSearchAll = 0o0777
 
 	// changelogFragments is the directory to store user created changelog fragments.
 	changelogFragments = "changelogs/fragments"
@@ -125,7 +130,7 @@ func (Ansible) Changelog() error {
 		WithMultiLine(true).Show()
 	pterm.Info.Printfln("You answered: %s", releaseNotes)
 
-	if err := os.WriteFile(changelogFragmentFile, []byte("---\nrelease_summary:\n    "+releaseNotes), PermissionUserReadWriteExecute); err != nil {
+	if err := os.WriteFile(changelogFragmentFile, []byte("---\nrelease_summary:\n    "+releaseNotes), PermissionReadWriteSearchAll); err != nil {
 		return err
 	}
 	venvPath := filepath.Join(VenvDirectory, VenvToolingDirectory)
