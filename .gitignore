@@ -196,3 +196,6 @@ cython_debug/
 
 .artifacts/
 .cache/
+
+# Per docs: https://github.com/ansible-community/antsibull-changelog/blob/main/docs/changelogs.rst
+changelogs/.plugin-cache.yaml
