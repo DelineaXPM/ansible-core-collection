@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 # Copyright: (c) 2022, Delinea <https://delinea.com>
-# Copyright: (c) 2020, Adam Migus <adam@migus.org>
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
 
@@ -10,7 +9,6 @@ DOCUMENTATION = r"""
 name: dsv
 author:
     - Delinea (!UNKNOWN) (https://delinea.com/)
-    - Adam Migus (@amigus) <adam@migus.org>
 short_description: Get secrets from Delinea DevOps Secrets Vault
 version_added: 1.0.0
 description:
