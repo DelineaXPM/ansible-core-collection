@@ -1,13 +1,30 @@
 ---
 name: lint
 on:
+  # Run CI against all pushes (direct commits, also merged PRs), Pull Requests
+  push:
+    branches:
+      - main
+      - stable-*
   pull_request:
+  # Run CI once per day (at 06:00 UTC)
+  # This ensures that even if there haven't been commits that we are still testing against latest version of ansible-test for each ansible-base version
+  # schedule:
+  #   - cron: '0 6 * * *'
   workflow_dispatch:
+
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.action }}
   cancel-in-progress: true
+
+permissions:
+  pull-requests: write
+  checks: write
 jobs:
   lint:
+    uses: delineaxpm/github-workflows/.github/workflows/lint.yml@main
+    secrets: inherit
+  ansible-lint:
     name: ansible-lint
     runs-on: ubuntu-latest
     timeout-minutes: 5
