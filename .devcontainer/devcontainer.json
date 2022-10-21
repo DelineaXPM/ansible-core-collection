@@ -82,6 +82,9 @@
       "version": "latest",
       "dockerDashComposeVersion": "v2",
       "username": "vscode"
+    },
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "latest"
     }
   }
 }
