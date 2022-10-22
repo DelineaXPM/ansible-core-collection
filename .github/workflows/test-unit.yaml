@@ -60,12 +60,12 @@ jobs:
 
       # Run the unit tests
       - name: Run unit test
-        run: ansible-test units -v --color --docker --coverage ./plugins
+        run: ansible-test units -v --color --docker --coverage
         working-directory: ./ansible_collections/${{env.NAMESPACE}}/${{env.COLLECTION_NAME}}
 
       # ansible-test support producing code coverage date
       - name: Generate coverage report
-        run: ansible-test coverage xml -v --requirements --group-by command --group-by version ./plugins
+        run: ansible-test coverage xml -v --requirements --group-by command --group-by version
         working-directory: ./ansible_collections/${{env.NAMESPACE}}/${{env.COLLECTION_NAME}}
 
       - uses: codecov/codecov-action@v3

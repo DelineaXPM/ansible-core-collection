@@ -85,8 +85,8 @@ func Init() error {
 func Clean() {
 	_ = os.RemoveAll(".artifacts/")
 	_ = os.RemoveAll(".cache/")
-	os.Mkdir(".artifacts/", 0755)
-	os.Mkdir(".cache/", 0755)
+	os.Mkdir(".artifacts/", 0o755)
+	os.Mkdir(".cache/", 0o755)
 	pterm.Success.Println("reset .artifacts and .cache/ directories")
 }
 
@@ -102,7 +102,7 @@ func (Ansible) UninstallCollection() error {
 
 // initVenvParentDirectory is the directory containing all the venv directories for various versions.
 func initVenvParentDirectory() error {
-	if err := os.MkdirAll(VenvDirectory, 0755); err != nil {
+	if err := os.MkdirAll(VenvDirectory, 0o755); err != nil {
 		return err
 	}
 	return nil
@@ -193,7 +193,7 @@ func (Py) Init() error {
 }
 
 func (Venv) Install() error {
-	if err := os.MkdirAll(VenvDirectory, 0755); err != nil {
+	if err := os.MkdirAll(VenvDirectory, 0o755); err != nil {
 		return err
 	}
 
@@ -283,7 +283,7 @@ func (Job) Setup() {
 	)
 }
 
-// 🧪 TestSanity will run ansible-test with the docker option, using the provided venv.
+// 🧪 TestSanity will run ansible-test with the docker option against all available versions.
 func (Venv) TestSanity() error {
 	magetoolsutils.CheckPtermDebug()
 	// needs linux as i don't handle different env path setup
@@ -331,14 +331,14 @@ func (Venv) TestSanity() error {
 			Namespace,
 			Collection,
 		)
-
+		pterm.Debug.Printfln("collectionDirectory: %q", collectionDirectory)
 		if _, err := os.Stat(collectionDirectory); os.IsNotExist(err) {
 			pterm.Error.Println(
 				"the target collection doesn't exist. It's likey you need to run:\n\n\tmage ansible:installcollection",
 			)
 		}
 		prog.UpdateTitle(fmt.Sprintf("ansible-test: %s", version))
-
+		pterm.Debug.Printfln("To run a local test outside mage change directories to collectionDirectory, and then run the command debug will output")
 		cmd := exec.Cmd{
 			Path: ansibleTestPath,
 			Dir:  collectionDirectory,
@@ -349,6 +349,8 @@ func (Venv) TestSanity() error {
 				"-v",
 				"--color",
 				"--coverage",
+				"--skip-test",
+				"symlinks,shebang", // causes issues with project files like devcontainer
 			}, // empty string required to avoid subcommand without flags disappearing
 			Stdout: nil,
 			Stderr: os.Stderr,
