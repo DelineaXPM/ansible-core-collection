@@ -182,6 +182,17 @@ issues:
         - maintidx
         - deadcode
         - gochecknoglobals
+    - path: magefile.go
+      linters:
+        - goerr113
+        - wrapcheck
+        - funlen
+        - gocyclo
+        - cyclop
+        - gocognit
+        - maintidx
+        - deadcode
+        - gochecknoglobals
     - linters:
         - goerr113
       text: magefiles don't need to worry about wrapping in the same way

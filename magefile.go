@@ -36,6 +36,9 @@ const (
 	// PermissionUserReadWriteExecute is the octal permission for read, write, & execute only for owner.
 	PermissionUserReadWriteExecute = 0o0700
 
+	// PermissionUserReadWriteExecuteGroupReadOnly Chmod 0755 (chmod a+rwx,g-w,o-w,ug-s,-t) sets permissions so that, (U)ser / owner can read, can write and can execute. (G)roup can read, can't write and can execute. (O)thers can read, can't write and can execute.
+	PermissionUserReadWriteExecuteGroupReadOnly = 0o755
+
 	// PermissionReadWriteSearchAll is the octal permission for all users to read, write, and search a file.
 	PermissionReadWriteSearchAll = 0o0777
 
@@ -70,7 +73,7 @@ func checklinux() {
 	}
 }
 
-func Init() error {
+func Init() {
 	magetoolsutils.CheckPtermDebug()
 
 	mg.Deps(
@@ -78,15 +81,14 @@ func Init() error {
 	)
 
 	pterm.Success.Println("Init()")
-	return nil
 }
 
 // Clean removes the local .artifact and .cache/ directories.
 func Clean() {
 	_ = os.RemoveAll(".artifacts/")
 	_ = os.RemoveAll(".cache/")
-	os.Mkdir(".artifacts/", 0o755)
-	os.Mkdir(".cache/", 0o755)
+	_ = os.Mkdir(".artifacts/", PermissionUserReadWriteExecuteGroupReadOnly)
+	_ = os.Mkdir(".cache/", PermissionUserReadWriteExecuteGroupReadOnly)
 	pterm.Success.Println("reset .artifacts and .cache/ directories")
 }
 
@@ -102,7 +104,7 @@ func (Ansible) UninstallCollection() error {
 
 // initVenvParentDirectory is the directory containing all the venv directories for various versions.
 func initVenvParentDirectory() error {
-	if err := os.MkdirAll(VenvDirectory, 0o755); err != nil {
+	if err := os.MkdirAll(VenvDirectory, PermissionUserReadWriteExecuteGroupReadOnly); err != nil {
 		return err
 	}
 	return nil
@@ -193,7 +195,7 @@ func (Py) Init() error {
 }
 
 func (Venv) Install() error {
-	if err := os.MkdirAll(VenvDirectory, 0o755); err != nil {
+	if err := os.MkdirAll(VenvDirectory, PermissionUserReadWriteExecuteGroupReadOnly); err != nil {
 		return err
 	}
 
@@ -230,7 +232,7 @@ func (Ansible) InstallBase(target string) error {
 			"- stable-2.11\n" +
 			"- stable-2.12\n" +
 			"- stable-2.13\n" +
-			"- devel\n",
+			"- devel",
 		)
 		return fmt.Errorf("missing parameter for InstallBase")
 	}
@@ -292,7 +294,7 @@ func (Venv) TestSanity() error {
 		WithTitle("running ansible-test").
 		WithTotal(len(AnsibleVersions)).
 		WithCurrent(0).
-		WithMaxWidth(pterm.GetTerminalWidth() / 2).
+		WithMaxWidth(pterm.GetTerminalWidth() / 2). //nolint:gomnd // allow magic num
 		WithTitle("TestSanity").
 		WithRemoveWhenDone(false).
 		WithShowElapsedTime(true).Start()
@@ -367,7 +369,6 @@ func (Venv) TestSanity() error {
 		if err := cmd.Run(); err != nil {
 			pterm.Warning.Printfln("error: %v", err)
 		}
-
 	}
 	return nil
 }
