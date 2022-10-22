@@ -88,7 +88,7 @@ jobs:
       # The docker container has all the pinned dependencies that are required
       # and all python versions ansible supports.
       - name: Run sanity tests
-        run: ansible-test sanity --docker -v --color --coverage --disable --skip-test symlinks,shebang
+        run: ansible-test sanity --docker -v --color --coverage --disable --skip-test 'symlinks','shebang'
         working-directory: ./ansible_collections/${{env.NAMESPACE}}/${{env.COLLECTION_NAME}}
 
       # ansible-test support producing code coverage date
