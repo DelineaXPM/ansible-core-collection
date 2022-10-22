@@ -20,6 +20,7 @@ concurrency:
 permissions:
   pull-requests: write
   checks: write
+  contents: read
 jobs:
   lint:
     uses: delineaxpm/github-workflows/.github/workflows/lint.yml@main
