@@ -1,27 +1,27 @@
 version: 0.1
 cli:
-  version: 1.0.1
+  version: 1.1.0
 plugins:
   sources:
     - id: trunk
-      ref: v0.0.5
+      ref: v0.0.6
       uri: https://github.com/trunk-io/plugins
 lint:
   enabled:
-    - hadolint@2.10.0
-    - prettier@2.7.1
-    - flake8@5.0.4
+    - hadolint@2.12.0
+    - prettier@2.8.0
+    - flake8@6.0.0
     - shfmt@3.5.0
     - isort@5.10.1
-    - actionlint@1.6.21
-    - gofmt@1.16.7
+    - actionlint@1.6.22
+    - gofmt@1.19.3
     - markdownlint@0.32.2
     - black@22.10.0
-    - golangci-lint@1.50.0
+    - golangci-lint@1.50.1
     - git-diff-check
-    - gitleaks@8.15.0
+    - gitleaks@8.15.1
     - yamllint@1.28.0
-    - taplo@release-taplo-cli-0.7.0
+    - taplo@0.7.0
     - shellcheck@0.8.0
     - gofumpt@0.4.0
     # - golines@0.11.0 # don't enable both at the same time
@@ -63,15 +63,8 @@ runtimes:
     - python@3.10.3
 actions:
   enabled:
+    - go-mod-tidy-vendor
     - trunk-announce
     - trunk-check-pre-push
     - trunk-fmt-pre-commit
     - trunk-upgrade-available
-    - go-mod-vendor
-  definitions:
-    - id: go-mod-vendor
-      description: When go mod or sum is updated, go vendoring should be run to ensure it's consistent.
-      runtime: go
-      run: mod vendor
-      triggers:
-        - files: [go.mod]

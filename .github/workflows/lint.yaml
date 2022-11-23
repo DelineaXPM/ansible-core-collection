@@ -12,10 +12,10 @@ on:
   # schedule:
   #   - cron: '0 6 * * *'
   workflow_dispatch:
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.action }}
-  cancel-in-progress: true
+# To avoid conflict with shared lint task, not setting anything here
+# concurrency:
+#   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.action }}
+#   cancel-in-progress: true
 
 permissions:
   pull-requests: write
