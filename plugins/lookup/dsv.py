@@ -20,6 +20,16 @@ options:
     _terms:
         description: The path to the secret, e.g. C(/staging/servers/web1).
         required: true
+    data_key:
+        description: Specific field in secret data to return. If empty then
+            entire secret object is returned. If defined, but not found then
+            an error is returned.
+        env:
+            - name: DSV_DATA_KEY
+        ini:
+            - section: dsv_lookup
+              key: data_key
+        required: false
     tenant:
         description: The first format parameter in the default I(url_template).
         env:
@@ -85,16 +95,13 @@ EXAMPLES = r"""
 """
 
 from ansible.errors import AnsibleError, AnsibleOptionsError
-from ansible.utils.display import Display
 from ansible.plugins.lookup import LookupBase
+from ansible.utils.display import Display
 
 sdk_is_missing = False
 
 try:
-    from thycotic.secrets.vault import (
-        SecretsVault,
-        SecretsVaultError,
-    )
+    from thycotic.secrets.vault import SecretsVault, SecretsVaultError
 except ImportError:
     sdk_is_missing = True
 
@@ -121,7 +128,7 @@ class LookupModule(LookupBase):
 
         self.set_options(var_options=variables, direct=kwargs)
 
-        vault = LookupModule.Client(
+        dsv_client = LookupModule.Client(
             {
                 "tenant": self.get_option("tenant"),
                 "client_id": self.get_option("client_id"),
@@ -130,6 +137,9 @@ class LookupModule(LookupBase):
                 "url_template": self.get_option("url_template"),
             }
         )
+
+        data_key = self.get_option("data_key")
+
         result = []
 
         for term in terms:
@@ -142,9 +152,20 @@ class LookupModule(LookupBase):
             display.vvv("DevOps Secrets Vault GET /secrets/%s" % path)
 
             try:
-                result.append(vault.get_secret_json(path))
+                response_body = dsv_client.get_secret(path)
             except SecretsVaultError as error:
                 raise AnsibleError(
                     "DevOps Secrets Vault lookup failure: %s" % error.message
                 )
+
+            if data_key:
+                try:
+                    result.append(response_body["data"][data_key])
+                except KeyError:
+                    raise AnsibleOptionsError(
+                        "DevOps Secrets Vault lookup failure: cannot find data key in secret data"
+                    )
+            else:
+                result.append(response_body)
+
         return result
