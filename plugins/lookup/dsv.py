@@ -94,6 +94,8 @@ EXAMPLES = r"""
           msg: 'the password is {{ secret["data"]["password"] }}'
 """
 
+import json
+
 from ansible.errors import AnsibleError, AnsibleOptionsError
 from ansible.plugins.lookup import LookupBase
 from ansible.utils.display import Display
@@ -151,21 +153,33 @@ class LookupModule(LookupBase):
 
             display.vvv("DevOps Secrets Vault GET /secrets/%s" % path)
 
-            try:
-                response_body = dsv_client.get_secret(path)
-            except SecretsVaultError as error:
-                raise AnsibleError(
-                    "DevOps Secrets Vault lookup failure: %s" % error.message
-                )
-
             if data_key:
                 try:
-                    result.append(response_body["data"][data_key])
+                    response_body = dsv_client.get_secret(path)
+                except SecretsVaultError as error:
+                    raise AnsibleError(
+                        "DevOps Secrets Vault lookup failure: %s" % error.message
+                    )
+                try:
+                    dsv_secret_data = response_body["data"][data_key]
                 except KeyError:
                     raise AnsibleOptionsError(
                         "DevOps Secrets Vault lookup failure: cannot find data key in secret data"
                     )
+
+                if isinstance(dsv_secret_data, str):
+                    dsv_secret = dsv_secret_data
+                else:
+                    dsv_secret = json.dumps(dsv_secret_data)
+
             else:
-                result.append(response_body)
+                try:
+                    dsv_secret = dsv_client.get_secret_json(path)
+                except SecretsVaultError as error:
+                    raise AnsibleError(
+                        "DevOps Secrets Vault lookup failure: %s" % error.message
+                    )
+
+            result.append(dsv_secret)
 
         return result
