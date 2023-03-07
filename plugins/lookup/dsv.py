@@ -145,13 +145,13 @@ class LookupModule(LookupBase):
         result = []
 
         for term in terms:
-            display.debug("dsv_lookup term: %s" % term)
+            display.v(f"delinea.core.dsv: term: {term}")
 
             path = term.lstrip("[/:]")
             if path == "":
                 raise AnsibleOptionsError("Invalid secret path: %s" % term)
 
-            display.vvv("DevOps Secrets Vault GET /secrets/%s" % path)
+            display.v(f"delinea.core.dsv: path: {path}")
 
             if data_key:
                 dsv_secret = self._get_secret_data_key(dsv_client, path, data_key)
@@ -173,7 +173,7 @@ class LookupModule(LookupBase):
         try:
             response_body = dsv_client.get_secret(path)
         except SecretsVaultError as error:
-            raise AnsibleError("DSV Vault lookup failure: %s" % error.message)
+            raise AnsibleError("DSV lookup failure: %s" % error.message)
 
         try:
             dsv_secret_data = response_body["data"][data_key]
