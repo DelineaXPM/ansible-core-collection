@@ -39,6 +39,46 @@ class TestLookupModule(TestCase):
         assert result[0] == '{"data": "secret-val"}'
 
     @patch("ansible_collections.delinea.core.plugins.lookup.dsv.LookupModule.Client")
+    def test_run_use_data_key_string(self, mock_client):
+        instance = mock_client.return_value
+        instance.get_secret.return_value = {"data": {"my-key": "my-val"}}
+
+        result = self.lookup.run(
+            ["secret/path"],
+            [],
+            **{
+                "data_key": "my-key",
+                "tenant": "ten",
+                "client_id": "cid",
+                "client_secret": "csecret",
+            }
+        )
+
+        instance.get_secret.assert_called_once_with("secret/path")
+        assert len(result) == 1
+        assert result[0] == "my-val"
+
+    @patch("ansible_collections.delinea.core.plugins.lookup.dsv.LookupModule.Client")
+    def test_run_use_data_key_dict(self, mock_client):
+        instance = mock_client.return_value
+        instance.get_secret.return_value = {"data": {"my-key": {"my-key2": "my-val"}}}
+
+        result = self.lookup.run(
+            ["secret/path"],
+            [],
+            **{
+                "data_key": "my-key",
+                "tenant": "ten",
+                "client_id": "cid",
+                "client_secret": "csecret",
+            }
+        )
+
+        instance.get_secret.assert_called_once_with("secret/path")
+        assert len(result) == 1
+        assert result[0] == '{"my-key": "my-val"}'
+
+    @patch("ansible_collections.delinea.core.plugins.lookup.dsv.LookupModule.Client")
     def test_run_removed_leading_colon(self, mock_client):
         instance = mock_client.return_value
         instance.get_secret_json.return_value = '{"data": "secret-val"}'

@@ -166,23 +166,20 @@ class LookupModule(LookupBase):
         try:
             dsv_secret = dsv_client.get_secret_json(path)
         except SecretsVaultError as error:
-            raise AnsibleError(
-                "DevOps Secrets Vault lookup failure: %s" % error.message
-            )
+            raise AnsibleError("DSV lookup failure: %s" % error.message)
         return dsv_secret
 
     def _get_secret_data_key(self, dsv_client, path, data_key):
         try:
             response_body = dsv_client.get_secret(path)
         except SecretsVaultError as error:
-            raise AnsibleError(
-                "DevOps Secrets Vault lookup failure: %s" % error.message
-            )
+            raise AnsibleError("DSV Vault lookup failure: %s" % error.message)
+
         try:
             dsv_secret_data = response_body["data"][data_key]
         except KeyError:
             raise AnsibleOptionsError(
-                "DevOps Secrets Vault lookup failure: cannot find data key in secret data"
+                "DSV lookup failure: cannot find data key in secret data"
             )
 
         if isinstance(dsv_secret_data, str):
