@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright: (c) 2022, Delinea <https://delinea.com>
+# Copyright: (c) 2023, Delinea <https://delinea.com>
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
 
@@ -84,17 +84,14 @@ EXAMPLES = r"""
           msg: 'the password is {{ secret["data"]["password"] }}'
 """
 
-from ansible.errors import AnsibleError, AnsibleOptionsError
-from ansible.utils.display import Display
-from ansible.plugins.lookup import LookupBase
+from ansible.errors import AnsibleError, AnsibleOptionsError  # noqa: E402
+from ansible.plugins.lookup import LookupBase  # noqa: E402
+from ansible.utils.display import Display  # noqa: E402
 
 sdk_is_missing = False
 
 try:
-    from thycotic.secrets.vault import (
-        SecretsVault,
-        SecretsVaultError,
-    )
+    from thycotic.secrets.vault import SecretsVault, SecretsVaultError  # noqa: E402
 except ImportError:
     sdk_is_missing = True
 

@@ -26,16 +26,31 @@ homepage: https://github.com/DelineaXPM/ansible-core-collection
 issues: https://github.com/DelineaXPM/ansible-core-collection/issues
 
 build_ignore:
+  # Directories:
+  - .devcontainer
+  - .github
+  - .trunk
+  - .vscode
+  - .venv
+  - changelogs
+  - venv
+  - vendor
+  # Files:
+  - .changie.yaml
+  - .editorconfig
   - .flake8
   - .gitattributes
   - .github
   - .gitignore
   - .gitleaks.toml
   - .golangci.yml
-  - .markdownlint-cli2.yaml
+  - .markdownlint.yaml
   - .pre-commit-config.yaml
   - .whitesource
   - .yamllint.yaml
+  - aqua.yaml
+  - CHANGELOG.rst
+  - codecov.yml
   - go.mod
   - go.sum
   - magefile.go
