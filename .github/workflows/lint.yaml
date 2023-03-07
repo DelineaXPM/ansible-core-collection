@@ -34,7 +34,7 @@ jobs:
         uses: actions/checkout@v3
       - uses: actions/setup-python@v4
         with:
-          python-version: 3.6
+          python-version: 3.11
       - name: ansible-lint
         uses: reviewdog/action-ansiblelint@v1.6.2
         with:
