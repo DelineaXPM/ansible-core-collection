@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# (c) 2022, Delinea <https://delinea.com>
+# (c) 2023, Delinea <https://delinea.com>
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -13,9 +13,9 @@ try:
 except ImportError:
     from mock import patch
 
-from ansible_collections.delinea.core.plugins.lookup import dsv
 from ansible.errors import AnsibleOptionsError
 from ansible.plugins.loader import lookup_loader
+from ansible_collections.delinea.core.plugins.lookup import dsv
 
 
 class TestLookupModule(TestCase):

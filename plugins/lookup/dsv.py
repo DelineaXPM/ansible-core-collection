@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright: (c) 2022, Delinea <https://delinea.com>
+# Copyright: (c) 2023, Delinea <https://delinea.com>
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
 
@@ -85,16 +85,13 @@ EXAMPLES = r"""
 """
 
 from ansible.errors import AnsibleError, AnsibleOptionsError
-from ansible.utils.display import Display
 from ansible.plugins.lookup import LookupBase
+from ansible.utils.display import Display
 
 sdk_is_missing = False
 
 try:
-    from thycotic.secrets.vault import (
-        SecretsVault,
-        SecretsVaultError,
-    )
+    from thycotic.secrets.vault import SecretsVault, SecretsVaultError
 except ImportError:
     sdk_is_missing = True
 
