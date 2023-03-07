@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# (c) 2022, Delinea <https://delinea.com>
+# (c) 2023, Delinea <https://delinea.com>
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
@@ -76,7 +76,7 @@ class TestLookupModule(TestCase):
 
         instance.get_secret.assert_called_once_with("secret/path")
         assert len(result) == 1
-        assert result[0] == '{"my-key": "my-val"}'
+        assert result[0] == '{"my-key2": "my-val"}'
 
     @patch("ansible_collections.delinea.core.plugins.lookup.dsv.LookupModule.Client")
     def test_run_removed_leading_colon(self, mock_client):

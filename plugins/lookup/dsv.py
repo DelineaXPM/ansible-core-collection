@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright: (c) 2022, Delinea <https://delinea.com>
+# Copyright: (c) 2023, Delinea <https://delinea.com>
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 from __future__ import absolute_import, division, print_function
 
@@ -115,12 +115,12 @@ class LookupModule(LookupBase):
     @staticmethod
     def Client(vault_parameters):
         try:
-            vault = SecretsVault(**vault_parameters)
-            return vault
+            dsv_client = SecretsVault(**vault_parameters)
         except TypeError:
             raise AnsibleError(
                 "python-dsv-sdk==0.0.1 must be installed to use this plugin"
             )
+        return dsv_client
 
     def run(self, terms, variables, **kwargs):
         if sdk_is_missing:
@@ -145,13 +145,13 @@ class LookupModule(LookupBase):
         result = []
 
         for term in terms:
-            display.v(f"delinea.core.dsv: term: {term}")
+            display.v("delinea.core.dsv: term: %s", term)
 
             path = term.lstrip("[/:]")
             if path == "":
                 raise AnsibleOptionsError("Invalid secret path: %s" % term)
 
-            display.v(f"delinea.core.dsv: path: {path}")
+            display.v("delinea.core.dsv: path: %s" % path)
 
             if data_key:
                 dsv_secret = self._get_secret_data_key(dsv_client, path, data_key)
