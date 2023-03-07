@@ -145,7 +145,7 @@ class LookupModule(LookupBase):
         result = []
 
         for term in terms:
-            display.v("delinea.core.dsv: term: %s", term)
+            display.v("delinea.core.dsv: term: %s" % term)
 
             path = term.lstrip("[/:]")
             if path == "":
