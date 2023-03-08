@@ -1,6 +1,7 @@
 # Development Guide
 
 - [Prerequisites](#prerequisites)
+- [Get the code](#get-the-code)
 - [Dev environment](#dev-environment)
 - [Test](#test)
 - [Release](#release)
@@ -13,6 +14,25 @@ Make sure to checkout [the official developer guide for developing collections][
 - [Docker][get-docker]
 - [aqua][get-aqua]
 - [Trunk][get-trunk]
+
+## Get the code
+
+Ansible requires that collections are stored in `{...}/ansible_collections/NAMESPACE/COLLECTION_NAME` path.
+Therefore to be able to run tests, clone this repository to `{arbitrary path}/ansible_collections/delinea/core`.
+
+Example with using home directory:
+
+```bash
+mkdir -p ~/ansible_collections/delinea/core
+```
+
+```bash
+git clone git@github.com:DelineaXPM/ansible-core-collection.git ~/ansible_collections/delinea/core
+```
+
+```bash
+cd ~/ansible_collections/delinea/core
+```
 
 ## Dev environment
 
@@ -56,5 +76,4 @@ As a result a new archive will be generated (e.g. `delinea-core-1.0.0.tar.gz`) a
 [mage]: https://magefile.org/
 [delinea-core-galaxy]: https://galaxy.ansible.com/delinea/core
 [galaxy]: https://galaxy.ansible.com/
-[changelog.rst]: CHANGELOG.rst
 [readme.md]: README.md
