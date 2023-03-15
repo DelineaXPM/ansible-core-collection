@@ -1,18 +1,40 @@
 ---
 name: release
 on:
+  pull_request:
   workflow_dispatch:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  changelog:
-    name: changelog
+  release:
+    name: release
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: checkout
         uses: actions/checkout@v3
+
       - uses: actions/setup-python@v4
         with:
           python-version: 3.11
+
+      # Alternatively we could use `https://github.com/marketplace/actions/ansible-publish`,
+      # but it is the same `collection build` and `collection publish` flow.
+      - name: build-and-publish
+        run: |
+          echo "Installing ansible..."
+          pip3 install ansible
+          echo "Printing version..."
+          ansible-galaxy --version
+          echo "Building..."
+          ansible-galaxy collection build -v --force
+          ARCHIVE=$(ls -1 ./*.tar.gz)
+          echo "Archive name: ${ARCHIVE}"
+          echo "Archive content:"
+          tar -ztvf ${ARCHIVE}
+          echo "Publishing..."
+          ansible-galaxy collection publish -v --server "${GALAXY_SERVER}" --api-key "${GALAXY_KEY}" "${ARCHIVE}"
+        env:
+          GALAXY_SERVER: "https://galaxy.ansible.com/"
+          GALAXY_KEY: "not-now"
