@@ -19,12 +19,10 @@ tags:
   - secrets
   - password
   - passwords
-
 repository: https://github.com/DelineaXPM/ansible-core-collection
 documentation: https://github.com/DelineaXPM/ansible-core-collection
 homepage: https://github.com/DelineaXPM/ansible-core-collection
 issues: https://github.com/DelineaXPM/ansible-core-collection/issues
-
 build_ignore:
   # Directories:
   - .cache

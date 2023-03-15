@@ -11,29 +11,33 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      # Alternatively we could use `https://github.com/marketplace/actions/ansible-publish`,
+      # but it is the same `collection build` and `collection publish` flow.
+
       - name: checkout
         uses: actions/checkout@v3
-
+      - uses: aquaproj/aqua-installer@a39f721a15ed34ccbc85706e6e8ae8572c9ca9c6 # tag=v1.2.0
+        continue-on-error: true
+        with:
+          aqua_version: v1.32.0
+          enable_aqua_install: true
+          aqua_opts: '--tags release' # if using aqua.yaml config any special items in your repo like Golangci-lint using tags so it only installs what's needed
+        env:
+          AQUA_LOG_LEVEL: debug
+          AQUA_OPTS: ''
       - uses: actions/setup-python@v4
         with:
           python-version: 3.11
-
-      # Alternatively we could use `https://github.com/marketplace/actions/ansible-publish`,
-      # but it is the same `collection build` and `collection publish` flow.
-      - name: build-and-publish
-        run: |
-          echo "Installing ansible..."
-          pip3 install ansible
-          echo "Printing version..."
-          ansible-galaxy --version
-          echo "Building..."
-          ansible-galaxy collection build -v --force
-          ARCHIVE=$(ls -1 ./*.tar.gz)
-          echo "Archive name: ${ARCHIVE}"
-          echo "Archive content:"
-          tar -ztvf ${ARCHIVE}
-          echo "Publishing..."
-          ansible-galaxy collection publish -v --server "${GALAXY_SERVER}" --api-key "${GALAXY_KEY}" "${ARCHIVE}"
+      - name: mage-initsingle
+        uses: magefile/mage-action@2c1951143e54356ebe6a0c6c971bae325b5b50f1 # tag=v2
+        with:
+          version: latest
+          args: ansible:doctor
+      - name: mage-initsingle
+        uses: magefile/mage-action@2c1951143e54356ebe6a0c6c971bae325b5b50f1 # tag=v2
+        with:
+          version: latest
+          args: job:release
         env:
-          GALAXY_SERVER: "https://galaxy.ansible.com/"
-          GALAXY_KEY: "not-now"
+          GALAXY_SERVER: 'https://galaxy.ansible.com/'
+          # GALAXY_KEY: 'not-now'

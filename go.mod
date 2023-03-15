@@ -3,6 +3,8 @@ module local
 go 1.18
 
 require (
+	github.com/Masterminds/semver/v3 v3.2.0
+	github.com/bitfield/script v0.21.4
 	github.com/magefile/mage v1.14.0
 	github.com/pterm/pterm v0.12.50
 	github.com/sheldonhull/magetools v1.0.0
@@ -12,7 +14,6 @@ require (
 	atomicgo.dev/cursor v0.1.1 // indirect
 	atomicgo.dev/keyboard v0.2.8 // indirect
 	bitbucket.org/creachadair/shell v0.0.7 // indirect
-	github.com/bitfield/script v0.20.2 // indirect
 	github.com/containerd/console v1.0.3 // indirect
 	github.com/dustin/go-humanize v1.0.0 // indirect
 	github.com/gookit/color v1.5.2 // indirect

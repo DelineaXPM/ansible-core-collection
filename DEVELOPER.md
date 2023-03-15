@@ -1,10 +1,12 @@
 # Development Guide
 
-- [Prerequisites](#prerequisites)
-- [Get the code](#get-the-code)
-- [Dev environment](#dev-environment)
-- [Test](#test)
-- [Release](#release)
+- [Development Guide](#development-guide)
+  - [Prerequisites](#prerequisites)
+  - [Get the code](#get-the-code)
+  - [Dev environment](#dev-environment)
+  - [Development \& Testing](#development--testing)
+  - [Test](#test)
+  - [Release](#release)
 
 Make sure to checkout [the official developer guide for developing collections][developing-collections].
 
@@ -22,15 +24,15 @@ Therefore to be able to run tests, clone this repository to `{arbitrary path}/an
 
 Example with using home directory:
 
-```bash
+```shell
 mkdir -p ~/ansible_collections/delinea/core
 ```
 
-```bash
+```shell
 git clone git@github.com:DelineaXPM/ansible-core-collection.git ~/ansible_collections/delinea/core
 ```
 
-```bash
+```shell
 cd ~/ansible_collections/delinea/core
 ```
 
@@ -38,14 +40,24 @@ cd ~/ansible_collections/delinea/core
 
 Configure pre-commit:
 
-```bash
+```shell
 python3 -m pip install pre-commit --user && pre-commit install && pre-commit
 ```
 
 We use [Mage][mage] build tool to automate most of the tasks related to development.
-Mage is installed by aqua manager. Run `mage init` to setup.
+Mage is installed by aqua manager.
+Run `mage init` to setup.
+
+> This might take up to 8 mins the first time as it sets up virtual environments for every version listed.
 
 To list all available mage targets run `mage -l`.
+
+## Development & Testing
+
+For local development, you should activate one of the target environments that were automatically installed when running `mage job:setup` (or `mage init`).
+The terminal will have printing the source command for you.
+
+For example: `source .cache/stable-2.13/bin/activate` and you should have the venv activated now to develop with.
 
 ## Test
 
@@ -58,13 +70,15 @@ Follow [this link][delinea-core-galaxy] to open the `delinea.core` collection in
 When creating a new release start with writing a release summary.
 Run `mage ansible:changelog` to generate a new release_summary fragment interactively.
 
-Update version in `galaxy.yml` and update installation instructions in [README.md][readme.md].
+To update the version in `galaxy.yml` run `mage ansible:bump "patch"` and update installation instructions in [README.md][readme.md].
 
-Build the collection:
+To run the entire release lifecycle:
 
-```bash
-ansible-galaxy collection build
+```shell
+mage job:release
 ```
+
+Run `mage ansible:doctor` to validate all the requirements for publishing are installed (you'll want to activate the virtual env first).
 
 As a result a new archive will be generated (e.g. `delinea-core-1.0.0.tar.gz`) and it should be published.
 
