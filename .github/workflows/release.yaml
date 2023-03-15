@@ -3,6 +3,9 @@ name: release
 on:
   pull_request:
   workflow_dispatch:
+  push:
+    tags:
+      - v*
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
