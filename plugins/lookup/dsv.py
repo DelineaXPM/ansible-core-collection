@@ -20,6 +20,16 @@ options:
     _terms:
         description: The path to the secret, e.g. C(/staging/servers/web1).
         required: true
+    data_key:
+        description: Specific field in secret data to return. If empty then
+            entire secret object is returned. If defined, but not found then
+            an error is returned.
+        env:
+            - name: DSV_DATA_KEY
+        ini:
+            - section: dsv_lookup
+              key: data_key
+        required: false
     tenant:
         description: The first format parameter in the default I(url_template).
         env:
@@ -84,6 +94,8 @@ EXAMPLES = r"""
           msg: 'the password is {{ secret["data"]["password"] }}'
 """
 
+import json  # noqa: E402
+
 from ansible.errors import AnsibleError, AnsibleOptionsError  # noqa: E402
 from ansible.plugins.lookup import LookupBase  # noqa: E402
 from ansible.utils.display import Display  # noqa: E402
@@ -103,12 +115,12 @@ class LookupModule(LookupBase):
     @staticmethod
     def Client(vault_parameters):
         try:
-            vault = SecretsVault(**vault_parameters)
-            return vault
+            dsv_client = SecretsVault(**vault_parameters)
         except TypeError:
             raise AnsibleError(
                 "python-dsv-sdk==0.0.1 must be installed to use this plugin"
             )
+        return dsv_client
 
     def run(self, terms, variables, **kwargs):
         if sdk_is_missing:
@@ -118,7 +130,7 @@ class LookupModule(LookupBase):
 
         self.set_options(var_options=variables, direct=kwargs)
 
-        vault = LookupModule.Client(
+        dsv_client = LookupModule.Client(
             {
                 "tenant": self.get_option("tenant"),
                 "client_id": self.get_option("client_id"),
@@ -127,21 +139,50 @@ class LookupModule(LookupBase):
                 "url_template": self.get_option("url_template"),
             }
         )
+
+        data_key = self.get_option("data_key")
+
         result = []
 
         for term in terms:
-            display.debug("dsv_lookup term: %s" % term)
+            display.v("delinea.core.dsv: term: %s" % term)
 
             path = term.lstrip("[/:]")
             if path == "":
                 raise AnsibleOptionsError("Invalid secret path: %s" % term)
 
-            display.vvv("DevOps Secrets Vault GET /secrets/%s" % path)
+            display.v("delinea.core.dsv: path: %s" % path)
 
-            try:
-                result.append(vault.get_secret_json(path))
-            except SecretsVaultError as error:
-                raise AnsibleError(
-                    "DevOps Secrets Vault lookup failure: %s" % error.message
-                )
+            if data_key:
+                dsv_secret = self._get_secret_data_key(dsv_client, path, data_key)
+            else:
+                dsv_secret = self._get_secret(dsv_client, path)
+
+            result.append(dsv_secret)
+
         return result
+
+    def _get_secret(self, dsv_client, path):
+        try:
+            dsv_secret = dsv_client.get_secret_json(path)
+        except SecretsVaultError as error:
+            raise AnsibleError("DSV lookup failure: %s" % error.message)
+        return dsv_secret
+
+    def _get_secret_data_key(self, dsv_client, path, data_key):
+        try:
+            response_body = dsv_client.get_secret(path)
+        except SecretsVaultError as error:
+            raise AnsibleError("DSV lookup failure: %s" % error.message)
+
+        try:
+            dsv_secret_data = response_body["data"][data_key]
+        except KeyError:
+            raise AnsibleOptionsError(
+                "DSV lookup failure: cannot find data key in secret data"
+            )
+
+        if isinstance(dsv_secret_data, str):
+            return dsv_secret_data
+
+        return json.dumps(dsv_secret_data)

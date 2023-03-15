@@ -1,0 +1,1 @@
+release_summary: New option to allow returning a specific key from the returned data. If it's defined, but not found it will error, otherwise by default the entire secret object will be returned.
