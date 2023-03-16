@@ -38,14 +38,9 @@ const (
 
 	// Collection is the ansible collection name.
 	Collection = "core"
+
 	// VenvToolingDirectory is the venv for tooling.
 	VenvToolingDirectory = "tooling"
-
-	// PermissionUserReadWriteExecuteGroupReadOnly Chmod 0755 (chmod a+rwx,g-w,o-w,ug-s,-t) sets permissions so that, (U)ser / owner can read, can write and can execute. (G)roup can read, can't write and can execute. (O)thers can read, can't write and can execute.
-	PermissionUserReadWriteExecuteGroupReadOnly = 0o755
-
-	// PermissionReadWriteSearchAll is the octal permission for all users to read, write, and search a file.
-	PermissionReadWriteSearchAll = 0o0777
 
 	// changelogFragments is the directory to store user created changelog fragments.
 	changelogFragments = "changelogs/fragments"
@@ -138,10 +133,10 @@ func Clean() {
 }
 
 func createDirectories() {
-	if err := os.Mkdir(ArtifactDirectory, PermissionUserReadWriteExecuteGroupReadOnly); err != nil && !errors.Is(err, os.ErrExist) {
+	if err := mkdir(ArtifactDirectory); err != nil {
 		pterm.Error.Printfln("failed to create .artifacts/ directory: %s", err)
 	}
-	if err := os.Mkdir(VenvDirectory, PermissionUserReadWriteExecuteGroupReadOnly); err != nil && !errors.Is(err, os.ErrExist) {
+	if err := mkdir(VenvDirectory); err != nil {
 		pterm.Error.Printfln("failed to create .cache/ directory: %s", err)
 	}
 }
@@ -154,14 +149,6 @@ func (Ansible) InstallCollection() error {
 // ➕ InstallCollection will install the collection.
 func (Ansible) UninstallCollection() error {
 	return sh.Run("ansible-galaxy", "collection", "install", collectionName)
-}
-
-// initVenvParentDirectory is the directory containing all the venv directories for various versions.
-func initVenvParentDirectory() error {
-	if err := os.MkdirAll(VenvDirectory, PermissionUserReadWriteExecuteGroupReadOnly); err != nil {
-		return err
-	}
-	return nil
 }
 
 // Changelog is the directory for tooling like ansibull-changelog.
@@ -186,7 +173,7 @@ func (Ansible) Changelog() error {
 		WithMultiLine(true).Show()
 	pterm.Info.Printfln("You answered: %s", releaseNotes)
 
-	if err := os.WriteFile(changelogFragmentFile, []byte("---\nrelease_summary:\n    "+releaseNotes), PermissionReadWriteSearchAll); err != nil {
+	if err := writeFile(changelogFragmentFile, "---\nrelease_summary:\n    "+releaseNotes); err != nil {
 		return err
 	}
 	venvPath := filepath.Join(VenvDirectory, VenvToolingDirectory)
@@ -232,7 +219,7 @@ func (Ansible) Changelog() error {
 
 // 🐍 Init sets up the venv environment (without Ansible yet).
 func (Py) Init() error {
-	if err := initVenvParentDirectory(); err != nil {
+	if err := mkdir(VenvDirectory); err != nil {
 		return err
 	}
 
@@ -251,7 +238,7 @@ func (Py) Init() error {
 // 🐍 InitSingle sets up a single python virtual environment for publishing or other actions.
 func (Py) InitSingle() error {
 	pterm.DefaultHeader.Println("InitSingle()")
-	if err := initVenvParentDirectory(); err != nil {
+	if err := mkdir(VenvDirectory); err != nil {
 		return err
 	}
 
@@ -266,7 +253,7 @@ func (Py) InitSingle() error {
 }
 
 func (Venv) Install() error {
-	if err := os.MkdirAll(VenvDirectory, PermissionUserReadWriteExecuteGroupReadOnly); err != nil {
+	if err := mkdir(VenvDirectory); err != nil {
 		return err
 	}
 
@@ -299,7 +286,7 @@ func (Venv) Install() error {
 // InstallSingle sets up a single python virtual environment for publishing or other actions.
 func (Venv) InstallSingle() error {
 	pterm.DefaultHeader.Println("InstallSingle()")
-	if err := os.MkdirAll(VenvDirectory, PermissionUserReadWriteExecuteGroupReadOnly); err != nil {
+	if err := mkdir(VenvDirectory); err != nil {
 		return err
 	}
 
@@ -684,6 +671,22 @@ func (Ansible) Bump(bumpType string) error {
 	_, err = script.Exec(commandToRun).Stdout()
 	if err != nil {
 		pterm.Error.Printfln("failed to get version from galaxy.yml: %v", err)
+		return err
+	}
+	return nil
+}
+
+func writeFile(path string, data string) error {
+	const permBits = 0o777
+	if err := os.WriteFile(path, []byte(data), permBits); err != nil {
+		return err
+	}
+	return nil
+}
+
+func mkdir(path string) error {
+	const permBits = 0o755
+	if err := os.MkdirAll(path, permBits); err != nil {
 		return err
 	}
 	return nil
