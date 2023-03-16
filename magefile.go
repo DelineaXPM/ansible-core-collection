@@ -675,17 +675,14 @@ func (Ansible) Bump(bumpType string) error {
 	}
 	pterm.Info.Printfln("parsed version: %s", version.String())
 
+	// Use semver type to correctly increment based on desired type.
 	var newVersion semver.Version
-	// use semver type to correctly increment based on desired type.
 	switch bumpType {
 	case "major":
-		// Increment the major version number
 		newVersion = version.IncMajor()
 	case "minor":
-		// Increment the minor version number
 		newVersion = version.IncMinor()
 	case "patch":
-		// Increment the patch version number
 		newVersion = version.IncPatch()
 	default:
 		return fmt.Errorf("unknown bump type: %s", bumpType)
