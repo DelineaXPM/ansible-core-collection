@@ -15,7 +15,6 @@ import (
 	"runtime"
 	"strings"
 
-	// "github.com/bitfield/script"
 	"github.com/bitfield/script"
 	"github.com/magefile/mage/mg"
 	"github.com/magefile/mage/sh"
