@@ -176,44 +176,22 @@ func (Ansible) Changelog() error {
 	if err := writeFile(changelogFragmentFile, "---\nrelease_summary:\n    "+releaseNotes); err != nil {
 		return err
 	}
-	venvPath := filepath.Join(VenvDirectory, VenvToolingDirectory)
-	venvPathBin := filepath.Join(venvPath, "bin")
-	pypip := filepath.Join(venvPath, "bin", "pip3")
 
-	if err := sh.Run("python3", "-m", "venv", venvPath); err != nil {
+	venvPath := filepath.Join(VenvDirectory, VenvToolingDirectory)
+	if err := newVenv(venvPath); err != nil {
 		pterm.Error.Printfln("error installing requirements: %s", err)
 		return err
 	}
 	pterm.Success.Printfln("initialized venvpath: %s", venvPath)
-	if err := sh.Run(pypip, "install", "antsibull-changelog", "--disable-pip-version-check"); err != nil {
+	if err := venvInstall(venvPath, "antsibull-changelog"); err != nil {
 		pterm.Error.Printfln("error installing wheel in venv %s: %v", venvPath, err)
 		return err
 	}
 	pterm.Success.Println("installed antsibull-changelog")
-	// venvPathBin := filepath.Join(venvPath, "bin")
-	antsibullchangelog := filepath.Join(venvPath, "bin", "antsibull-changelog")
 
-	pathVar := os.Getenv("PATH")
-	newPath := venvPathBin + ":" + pathVar // NOTE: works for mac/linux
-
-	cmd := exec.Cmd{
-		Path: antsibullchangelog,
-		Args: []string{
-			"", // without blank go trims out the subcommand as no flag.
-			"release",
-		},
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
-		Env: []string{
-			fmt.Sprintf("PATH=%s", newPath),
-			fmt.Sprintf("VIRTUAL_ENV=%s", venvPath),
-		},
+	if err := venvRun(venvPath, "antsibull-changelog", "release"); err != nil {
+		return err
 	}
-	pterm.Debug.Printfln("cmd: %v", cmd.String())
-	if err := cmd.Run(); err != nil {
-		pterm.Warning.Printfln("error: %v", err)
-	}
-	pterm.Success.Printfln("created venv for: %s", VenvToolingDirectory)
 	return nil
 }
 
@@ -224,7 +202,7 @@ func (Py) Init() error {
 	}
 
 	for _, version := range AnsibleVersions {
-		if err := sh.Run("python3", "-m", "venv", filepath.Join(VenvDirectory, version)); err != nil {
+		if err := newVenv(filepath.Join(VenvDirectory, version)); err != nil {
 			pterm.Error.Printfln("error installing requirements: %s", err)
 			return err
 		}
@@ -242,7 +220,7 @@ func (Py) InitSingle() error {
 		return err
 	}
 
-	if err := sh.Run("python3", "-m", "venv", filepath.Join(VenvDirectory, AnsibleVersionCI)); err != nil {
+	if err := newVenv(filepath.Join(VenvDirectory, AnsibleVersionCI)); err != nil {
 		pterm.Error.Printfln("error installing requirements: %s", err)
 		return err
 	}
@@ -674,6 +652,26 @@ func (Ansible) Bump(bumpType string) error {
 		return err
 	}
 	return nil
+}
+
+func newVenv(path string) error {
+	return sh.Run("python3", "-m", "venv", "--clear", path)
+}
+
+func venvInstall(path, name string) error {
+	return venvRun(path, "pip3", "install", name, "--disable-pip-version-check")
+}
+
+func venvRun(path, cmd string, args ...string) error {
+	venvBin := filepath.Join(path, "bin")
+	runnable := filepath.Join(venvBin, cmd)
+
+	env := map[string]string{
+		"PATH":        venvBin + ":" + os.Getenv("PATH"),
+		"VIRTUAL_ENV": path,
+	}
+
+	return sh.RunWith(env, runnable, args...)
 }
 
 func writeFile(path string, data string) error {
