@@ -693,7 +693,7 @@ func (Ansible) Bump(bumpType string) error {
 
 	// update the current version and replace yaml
 	pterm.Info.Printfln("new version: %s", newVersion.String())
-	commandToRun:=fmt.Sprintf("yq --inplace '.version = \"%s\" ' %s", newVersion.String(), GalaxyYaml)
+	commandToRun := fmt.Sprintf("yq --inplace '.version = \"%s\" ' %s", newVersion.String(), GalaxyYaml)
 	pterm.Info.Printfln("command: %s", commandToRun)
 	_, err = script.Exec(commandToRun).Stdout()
 	if err != nil {
