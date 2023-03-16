@@ -560,35 +560,28 @@ type checkEnv struct {
 // Yes this could be replaced by the `env` package but I had this in place and the output is nice for debugging so I left it. - Sheldon 😀
 //
 //nolint:unparam // ignoring as i'll want to use the values in the future, ok to leave for now.
-func checkEnvVar(ckv checkEnv) (value string, ptd pterm.TableData, err error) {
-	// loggedValue is used to make sure any secret isn't put into the table output.
-	var loggedValue string
-	var isSet bool
-	tbl := ckv.Tbl
-	value, isSet = os.LookupEnv(ckv.Name)
-	if isSet {
-		if ckv.IsSecret {
-			loggedValue = "***** secret set, but not logged *****"
-		} else {
-			loggedValue = value
-		}
-	}
-	// Required but not set is an error condition to report back to the user.
-	if !isSet && ckv.IsRequired {
-		tbl = append(tbl, []string{"❌", ckv.Name, loggedValue, ckv.Notes})
-		return "", tbl, fmt.Errorf("%s is required and not set", ckv.Name)
-	}
-	// Required but not a terminating error, then just put as information different from success, and no error.
-	if !isSet && !ckv.IsRequired {
-		tbl = append(tbl, []string{"👉", ckv.Name, loggedValue, ckv.Notes})
+func checkEnvVar(ckv *checkEnv) (string, pterm.TableData, error) {
+	value, ok := os.LookupEnv(ckv.Name)
+	switch {
+	case ok && ckv.IsSecret:
+		tbl := append(ckv.Tbl, []string{"✅", ckv.Name, "***** secret set, but not logged *****", ckv.Notes})
 		return value, tbl, nil
-	}
 
-	if isSet {
-		tbl = append(tbl, []string{"✅", ckv.Name, loggedValue, ckv.Notes})
+	case ok && !ckv.IsSecret:
+		tbl := append(ckv.Tbl, []string{"✅", ckv.Name, value, ckv.Notes})
 		return value, tbl, nil
+
+	case !ok && ckv.IsRequired:
+		tbl := append(ckv.Tbl, []string{"❌", ckv.Name, "", ckv.Notes})
+		return "", tbl, fmt.Errorf("%s is required and not set", ckv.Name)
+
+	case !ok && !ckv.IsRequired:
+		tbl := append(ckv.Tbl, []string{"👉", ckv.Name, "", ckv.Notes})
+		return "", tbl, nil
+
+	default:
+		return "", nil, nil // Unreachable.
 	}
-	return "", tbl, fmt.Errorf("unknown error (no conditions were hit so it's a PEKAB issue 😁) with evaluation of: %s", ckv.Name)
 }
 
 // Doctor will validate the required tools and environment variables are available.
@@ -616,11 +609,11 @@ func (Ansible) Doctor() error {
 		}
 	}(&tbl)
 	var errorCount int
-	_, tbl, err := checkEnvVar(checkEnv{Name: "GALAXY_SERVER", IsSecret: false, IsRequired: true, Tbl: tbl, Notes: "required for defining target publish location"})
+	_, tbl, err := checkEnvVar(&checkEnv{Name: "GALAXY_SERVER", IsSecret: false, IsRequired: true, Tbl: tbl, Notes: "required for defining target publish location"})
 	if err != nil {
 		errorCount++
 	}
-	_, tbl, err = checkEnvVar(checkEnv{Name: "GALAXY_KEY", IsSecret: true, IsRequired: true, Tbl: tbl, Notes: "required for publishing"})
+	_, tbl, err = checkEnvVar(&checkEnv{Name: "GALAXY_KEY", IsSecret: true, IsRequired: true, Tbl: tbl, Notes: "required for publishing"})
 	if err != nil {
 		errorCount++
 	}
