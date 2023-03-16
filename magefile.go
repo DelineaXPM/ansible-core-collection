@@ -41,9 +41,6 @@ const (
 	// VenvToolingDirectory is the venv for tooling.
 	VenvToolingDirectory = "tooling"
 
-	// PermissionUserReadWriteExecute is the octal permission for read, write, & execute only for owner.
-	PermissionUserReadWriteExecute = 0o0700
-
 	// PermissionUserReadWriteExecuteGroupReadOnly Chmod 0755 (chmod a+rwx,g-w,o-w,ug-s,-t) sets permissions so that, (U)ser / owner can read, can write and can execute. (G)roup can read, can't write and can execute. (O)thers can read, can't write and can execute.
 	PermissionUserReadWriteExecuteGroupReadOnly = 0o755
 
