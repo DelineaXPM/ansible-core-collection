@@ -80,15 +80,8 @@ func Clean() {
 	pterm.Info.Println("🧹 Clean() completed")
 }
 
-// 🧪 Test runs unit and sanity tests in containers.
-func Test() error {
-	if !venvBinExists("ansible-test") {
-		pterm.Error.Println("run `mage init` first")
-		return nil
-	}
-	mg.SerialDeps(TestUnit, TestSanity)
-	return nil
-}
+// 🧪 Test runs unit and sanity tests.
+func Test() { mg.SerialDeps(TestUnit, TestSanity) }
 
 // 🧪 TestSanity runs sanity tests in containers.
 func TestSanity() error {
@@ -130,9 +123,8 @@ func TestUnit() error {
 		if err := os.RemoveAll(testsOutput); err != nil {
 			pterm.Error.Printfln("🧹 failed to delete %q: %v", testsOutput, err)
 			return nil
-		} else {
-			pterm.Success.Printfln("🧹 %q", testsOutput)
 		}
+		pterm.Success.Printfln("🧹 %q", testsOutput)
 	}
 
 	pterm.DefaultSection.Println("Unit Tests:")
@@ -157,13 +149,32 @@ func TestUnit() error {
 	return venvRunV("ansible-test", "coverage", "report")
 }
 
+// work-in-progess
+func Changelog() error {
+	magetoolsutils.CheckPtermDebug()
+
+	pterm.DefaultHeader.Println("antsibull-changelog")
+
+	if !venvBinExists("pip3") {
+		pterm.Error.Println("run `mage init` first")
+		return nil
+	}
+	if !venvBinExists("antsibull-changelog") {
+		if err := venvInstall("antsibull-changelog"); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // 🍬 Bump increments version in the galaxy file of the collection, using yq.
 // Valid types are "major", "minor", "patch"
 func Bump(bumpType string) error {
 	pterm.DefaultHeader.Printfln("Version Bump")
 
-	GalaxyYaml := "galaxy.yml"
-	current, err := sh.Output("yq", ".version", GalaxyYaml)
+	galaxyYaml := "galaxy.yml"
+	current, err := sh.Output("yq", ".version", galaxyYaml)
 	if err != nil {
 		pterm.Error.Printfln("failed to get version from galaxy.yml:\n\t%v", err)
 		return err
@@ -190,7 +201,7 @@ func Bump(bumpType string) error {
 	pterm.Info.Printfln("%q: %q -> %q", bumpType, current, bumped)
 
 	err = sh.RunV(
-		"yq", "--inplace", fmt.Sprintf(".version = \"%s\"", bumped), GalaxyYaml,
+		"yq", "--inplace", fmt.Sprintf(".version = \"%s\"", bumped), galaxyYaml,
 	)
 
 	if err != nil {
@@ -439,19 +450,6 @@ func checklinux() {
 	if runtime.GOOS == "windows" {
 		_ = mg.Fatalf(1, "this command is only supported on Linux or Darwin and you are on: %s", runtime.GOOS)
 	}
-}
-
-// Release runs all the required steps to create setup the virtual env for publishing and create the release artifact.
-func (Job) Release() {
-	magetoolsutils.CheckPtermDebug()
-	checklinux()
-
-	mg.SerialDeps(
-		Py.InitSingle,
-		Venv.InstallSingle,
-		// Ansible.Doctor
-		Release,
-	)
 }
 
 // Changelog is the directory for tooling like ansibull-changelog.
