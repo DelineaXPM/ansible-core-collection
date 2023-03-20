@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 env:
-  WHERE: "./ansible_collections/delinea/core"
+  HERE: "./ansible_collections/delinea/core"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -17,7 +17,7 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
-    name: check-${{ matrix.ansible }}
+    name: ansible-${{ matrix.ansible }}
     timeout-minutes: 10
     strategy:
       fail-fast: true
@@ -33,7 +33,7 @@ jobs:
       - name: Pull
         uses: actions/checkout@v3
         with:
-          path: ${{ env.WHERE }}
+          path: ${{ env.HERE }}
 
       - name: Python
         uses: actions/setup-python@v4
@@ -47,19 +47,19 @@ jobs:
           aqua_version: v1.32.0
           enable_aqua_install: true
           aqua_opts: "--tags tests"
-          working_directory: ${{ env.WHERE }}
+          working_directory: ${{ env.HERE }}
 
       - name: Init
         run: mage initCI ${{ matrix.ansible }}
-        working-directory: ${{ env.WHERE }}
+        working-directory: ${{ env.HERE }}
 
       - name: Unit
         run: mage testUnit
-        working-directory: ${{ env.WHERE }}
+        working-directory: ${{ env.HERE }}
 
       - name: Sanity
         run: mage testSanity
-        working-directory: ${{ env.WHERE }}
+        working-directory: ${{ env.HERE }}
 
       - uses: codecov/codecov-action@v3
         with:

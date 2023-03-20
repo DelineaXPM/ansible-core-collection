@@ -2,12 +2,11 @@
 name: release
 
 on:
-  pull_request:
   workflow_dispatch:
 
 env:
   ANSIBLE: "stable-2.13"
-  WHERE: "./ansible_collections/delinea/core"
+  HERE: "./ansible_collections/delinea/core"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -23,7 +22,7 @@ jobs:
       - name: Pull
         uses: actions/checkout@v3
         with:
-          path: ${{ env.WHERE }}
+          path: ${{ env.HERE }}
 
       - name: Python
         uses: actions/setup-python@v4
@@ -37,23 +36,27 @@ jobs:
           aqua_version: v1.32.0
           enable_aqua_install: true
           aqua_opts: "--tags release"
-          working_directory: ${{ env.WHERE }}
+          working_directory: ${{ env.HERE }}
 
       - name: Init
         run: mage initCI ${{ env.ANSIBLE }}
-        working-directory: ${{ env.WHERE }}
+        working-directory: ${{ env.HERE }}
+
+      - name: Env
+        run: mage doctor
+        working-directory: ${{ env.HERE }}
 
       - name: Sanity
         run: mage testSanity
-        working-directory: ${{ env.WHERE }}
+        working-directory: ${{ env.HERE }}
 
       - name: Build
         run: mage build
-        working-directory: ${{ env.WHERE }}
+        working-directory: ${{ env.HERE }}
 
       - name: Publish
         run: mage publish
-        working-directory: ${{ env.WHERE }}
+        working-directory: ${{ env.HERE }}
         env:
           GALAXY_SERVER: "https://galaxy.ansible.com/"
-          GALAXY_KEY: "work-in-progress"
+          #GALAXY_KEY: ""

@@ -10,13 +10,9 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
-
-	//"os/exec"
-	//"regexp"
-	//"runtime"
-	//"strings"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/magefile/mage/mg"
@@ -27,7 +23,7 @@ import (
 )
 
 const (
-	// AnsibleLatest defines the latest stable version we use and therefore support.
+	// AnsibleLatest defines the latest stable version we use and support.
 	AnsibleLatest = "stable-2.13"
 
 	// CacheDir is the directory to keep virtual environments (ignored by git).
@@ -46,7 +42,13 @@ func Init() error {
 		return nil
 	}
 
-	return ansibleInit(AnsibleLatest)
+	if err := ansibleInit(AnsibleLatest); err != nil {
+		return err
+	}
+	pterm.Success.Printfln(
+		"to activate virtual environment run:\n\tsource ./.cache/venv/bin/activate",
+	)
+	return nil
 }
 
 // 🎩 InitCI initializes a new Python virtual environment with given version of Ansible installed.
@@ -54,7 +56,7 @@ func InitCI(version string) error {
 	return ansibleInit(version)
 }
 
-// 🧹 Clean removes '.artifact/', '.cache/', 'tests/output/', directories from the project.
+// 🧹 Clean removes '.artifact/', '.cache/', 'tests/output/' directories from the project.
 func Clean() {
 	magetoolsutils.CheckPtermDebug()
 
@@ -81,7 +83,12 @@ func Clean() {
 }
 
 // 🧪 Test runs unit and sanity tests.
-func Test() { mg.SerialDeps(TestUnit, TestSanity) }
+func Test() error {
+	if err := TestUnit(); err != nil {
+		return err
+	}
+	return TestSanity()
+}
 
 // 🧪 TestSanity runs sanity tests in containers.
 func TestSanity() error {
@@ -149,26 +156,7 @@ func TestUnit() error {
 	return venvRunV("ansible-test", "coverage", "report")
 }
 
-// work-in-progess
-func Changelog() error {
-	magetoolsutils.CheckPtermDebug()
-
-	pterm.DefaultHeader.Println("antsibull-changelog")
-
-	if !venvBinExists("pip3") {
-		pterm.Error.Println("run `mage init` first")
-		return nil
-	}
-	if !venvBinExists("antsibull-changelog") {
-		if err := venvInstall("antsibull-changelog"); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// 🍬 Bump increments version in the galaxy file of the collection, using yq.
+// 🔼 Bump increments version in the galaxy file of the collection, using yq.
 // Valid types are "major", "minor", "patch"
 func Bump(bumpType string) error {
 	pterm.DefaultHeader.Printfln("Version Bump")
@@ -211,7 +199,60 @@ func Bump(bumpType string) error {
 	return nil
 }
 
-// 🍬 Build packages the collection into a publishable archive.
+// 📜 Changelog helps with creating a release changelog.
+func Changelog() error {
+	magetoolsutils.CheckPtermDebug()
+
+	pterm.DefaultHeader.Println("antsibull-changelog")
+
+	if !venvExists() {
+		pterm.Error.Println("run `mage init` first")
+		return nil
+	}
+	if !venvBinExists("antsibull-changelog") {
+		if err := venvInstall("antsibull-changelog"); err != nil {
+			return err
+		}
+	}
+
+	galaxyYaml := "galaxy.yml"
+	current, err := sh.Output("yq", ".version", galaxyYaml)
+	if err != nil {
+		pterm.Error.Printfln("failed to get version from galaxy.yml:\n\t%v", err)
+		return err
+	}
+
+	changeFile := filepath.Join("changelogs", "fragments", current+".yml")
+	if _, err := os.Stat(changeFile); err == nil {
+		pterm.Error.Printfln("file %q already exists", changeFile)
+		return errors.New("already exists")
+	}
+
+	pterm.Info.Printfln("Preparing changelog for version %q", current)
+	pterm.Info.Println("Enter release summary")
+	summary, err := pterm.DefaultInteractiveTextInput.WithMultiLine(true).Show()
+	if err != nil {
+		return err
+	}
+	pterm.Info.Printfln("You answered:\n%s", summary)
+
+	summary = strings.ReplaceAll(summary, "\n", "\n    ")
+	summary = strings.TrimSpace(summary)
+
+	final := "---\nrelease_summary: "
+	if !strings.Contains(summary, "\n") {
+		final += summary + "\n"
+	} else {
+		final += "|\n    " + summary + "\n"
+	}
+	if err := writeFile(changeFile, final); err != nil {
+		return err
+	}
+
+	return venvRunV("antsibull-changelog", "release", "-v")
+}
+
+// 📦 Build packages the collection into a publishable archive.
 func Build() error {
 	magetoolsutils.CheckPtermDebug()
 
@@ -242,7 +283,7 @@ func Build() error {
 	return nil
 }
 
-// 🍬 Publish sends archived collection to Ansible Galaxy.
+// 🚀 Publish sends archived collection to Ansible Galaxy.
 func Publish() error {
 	magetoolsutils.CheckPtermDebug()
 
@@ -282,6 +323,69 @@ func Publish() error {
 	return nil
 }
 
+// 🔍 Doctor will validate the required tools and environment variables are available.
+func Doctor() error {
+	magetoolsutils.CheckPtermDebug()
+
+	pterm.DefaultHeader.Println("Check Environment")
+
+	if !venvExists() {
+		pterm.Error.Println("run `mage init` first")
+		return nil
+	}
+
+	primary := pterm.NewStyle(pterm.FgLightWhite, pterm.BgGray, pterm.Bold)
+	printer := pterm.DefaultTable.WithHasHeader().WithBoxed().WithHeaderStyle(primary)
+
+	tbl := pterm.TableData{
+		[]string{"Status", "Check", "Value", "Notes"},
+		[]string{"✅", "Go version", runtime.Version(), ""},
+		[]string{"✅", "GOOS", runtime.GOOS, ""},
+		[]string{"✅", "GOARCH", runtime.GOARCH, ""},
+		[]string{"✅", "GOROOT", runtime.GOROOT(), ""},
+		[]string{"✅", "GOPATH", os.Getenv("GOPATH"), ""},
+	}
+
+	defer func() {
+		if err := printer.WithData(tbl).Render(); err != nil {
+			pterm.Error.Printf("pterm.TablePrinter: Render() failed. Continuing...\n%v", err)
+		}
+	}()
+
+	errorCount := 0
+
+	_, tbl, err := checkEnvVar(&checkEnv{Name: "GALAXY_SERVER", IsSecret: false, IsRequired: true, Tbl: tbl, Notes: "required for defining target publish location"})
+	if err != nil {
+		errorCount++
+	}
+	_, tbl, err = checkEnvVar(&checkEnv{Name: "GALAXY_KEY", IsSecret: true, IsRequired: true, Tbl: tbl, Notes: "required for publishing"})
+	if err != nil {
+		errorCount++
+	}
+
+	output, err := venvOutput("ansible-galaxy", "--version")
+	if err != nil {
+		errorCount++
+		tbl = append(tbl, []string{"❌", "ansible-galaxy", "ansible-galaxy", "required for building and publishing"})
+	} else {
+		output = strings.Split(output, "\n")[0]
+		tbl = append(tbl, []string{"✅", "ansible-galaxy", output, "required cli tool"})
+	}
+	version, err := venvOutput("python3", "--version")
+	if err != nil {
+		errorCount++
+		tbl = append(tbl, []string{"❌", "python3", "python3", "required for building and publishing"})
+	} else {
+		tbl = append(tbl, []string{"✅", "python3", version, "required for building and publishing"})
+	}
+
+	if errorCount > 0 {
+		pterm.Error.Printfln("required checks failed: %d", errorCount)
+		return fmt.Errorf("failed %d checks", errorCount)
+	}
+	return nil
+}
+
 // ----------------------------------- //
 //          Helper Functions           //
 // ----------------------------------- //
@@ -317,6 +421,8 @@ func venvInit() error {
 	return nil
 }
 
+func venvExists() bool { return venvBinExists("pip3") }
+
 func venvBinExists(name string) bool {
 	_, err := os.Stat(filepath.Join(CacheDir, "venv", "bin", name))
 	return err == nil
@@ -328,7 +434,7 @@ func venvInstall(name string) error {
 		pterm.Error.Printfln("error installing name %q: %s", name, err)
 		return err
 	}
-	pterm.Success.Printfln("installed %q (took: %s)", name, time.Since(now))
+	pterm.Success.Printfln(" - installed %q (took: %s)", name, time.Since(now))
 	return nil
 }
 
@@ -349,6 +455,17 @@ func venvRunBinary(useStdout bool, cmd string, args ...string) error {
 		return sh.RunWithV(env, runnable, args...)
 	}
 	return sh.RunWith(env, runnable, args...)
+}
+
+func venvOutput(cmd string, args ...string) (string, error) {
+	path := filepath.Join(CacheDir, "venv")
+	venvBin := filepath.Join(path, "bin")
+	runnable := filepath.Join(venvBin, cmd)
+	env := map[string]string{
+		"PATH":        venvBin + ":" + os.Getenv("PATH"),
+		"VIRTUAL_ENV": path,
+	}
+	return sh.OutputWith(env, runnable, args...)
 }
 
 func writeFile(path string, data string) error {
@@ -413,88 +530,6 @@ func archiveContent(path string) ([]string, error) {
 	return files, nil
 }
 
-/*
-const (
-	// collectionName is the name of the Ansible collection.
-	collectionName = "delinea.core"
-
-	// Namespace is the ansible collection namespace.
-	Namespace = "delinea"
-
-	// Collection is the ansible collection name.
-	Collection = "core"
-
-	// VenvToolingDirectory is the venv for tooling.
-	VenvToolingDirectory = "tooling"
-
-	// changelogFragments is the directory to store user created changelog fragments.
-	changelogFragments = "changelogs/fragments"
-
-	// GalaxyYaml is the name of the galaxy.yml file.
-	GalaxyYaml = "galaxy.yml"
-
-	// VenvDir is the default directory for virtual environment.
-	VenvDir = "venv"
-)
-
-// AnsibleVersions is a list of Ansible versions to test and create virtual environments for.
-var AnsibleVersions = []string{
-	"stable-2.10",
-	"stable-2.11",
-	"stable-2.12",
-	"stable-2.13",
-	"devel",
-}
-
-func checklinux() {
-	if runtime.GOOS == "windows" {
-		_ = mg.Fatalf(1, "this command is only supported on Linux or Darwin and you are on: %s", runtime.GOOS)
-	}
-}
-
-// Changelog is the directory for tooling like ansibull-changelog.
-//
-// The first time you run this, you have to initialize the changelog via: `.cache/tooling/bin/antsibull-changelog init .`
-func (Ansible) Changelog() error {
-	magetoolsutils.CheckPtermDebug()
-
-	checklinux()
-	pterm.DefaultHeader.Println("Changelog()")
-
-	// No fancy semver matching, just trust the input.
-	pterm.Info.Println("Enter semver version (example: 1.0.x)")
-	versionSemver, _ := pterm.DefaultInteractiveTextInput.WithMultiLine(false).Show()
-	pterm.Info.Printfln("You answered: %s", versionSemver)
-
-	changelogFragmentFile := filepath.Join(changelogFragments, versionSemver+".yml")
-
-	pterm.Info.Println("Enter release summary")
-	releaseNotes, _ := pterm.DefaultInteractiveTextInput.WithMultiLine(true).Show()
-	pterm.Info.Printfln("You answered: %s", releaseNotes)
-
-	if err := writeFile(changelogFragmentFile, "---\nrelease_summary:\n    "+releaseNotes); err != nil {
-		return err
-	}
-
-	if err := Venv{}.New(); err != nil {
-		pterm.Error.Printfln("error installing requirements: %s", err)
-		return err
-	}
-	pterm.Success.Println("initialized virtual environment")
-	if err := venvInstall("antsibull-changelog"); err != nil {
-		pterm.Error.Printfln("error installing antsibull-changelog: %v", err)
-		return err
-	}
-	pterm.Success.Println("installed antsibull-changelog")
-
-	if err := venvRun("antsibull-changelog", "release"); err != nil {
-		return err
-	}
-	return nil
-}
-
-// checkEnv is the struct to pass into the checkEnvVar function to check and validate the environment variables.
-// This builds a nice table summary when used to help summarize all the failed checks rather than doing this piecemeal.
 type checkEnv struct {
 	Name       string
 	IsSecret   bool
@@ -511,84 +546,22 @@ func checkEnvVar(ckv *checkEnv) (string, pterm.TableData, error) {
 	value, ok := os.LookupEnv(ckv.Name)
 	switch {
 	case ok && ckv.IsSecret:
-		tbl := append(ckv.Tbl, []string{"✅", ckv.Name, "***** secret set, but not logged *****", ckv.Notes})
-		return value, tbl, nil
+		ckv.Tbl = append(ckv.Tbl, []string{"✅", ckv.Name, "***** secret set, but not logged *****", ckv.Notes})
+		return value, ckv.Tbl, nil
 
 	case ok && !ckv.IsSecret:
-		tbl := append(ckv.Tbl, []string{"✅", ckv.Name, value, ckv.Notes})
-		return value, tbl, nil
+		ckv.Tbl = append(ckv.Tbl, []string{"✅", ckv.Name, value, ckv.Notes})
+		return value, ckv.Tbl, nil
 
 	case !ok && ckv.IsRequired:
-		tbl := append(ckv.Tbl, []string{"❌", ckv.Name, "", ckv.Notes})
-		return "", tbl, fmt.Errorf("%s is required and not set", ckv.Name)
+		ckv.Tbl = append(ckv.Tbl, []string{"❌", ckv.Name, "", ckv.Notes})
+		return "", ckv.Tbl, fmt.Errorf("%s is required and not set", ckv.Name)
 
 	case !ok && !ckv.IsRequired:
-		tbl := append(ckv.Tbl, []string{"👉", ckv.Name, "", ckv.Notes})
-		return "", tbl, nil
+		ckv.Tbl = append(ckv.Tbl, []string{"👉", ckv.Name, "", ckv.Notes})
+		return "", ckv.Tbl, nil
 
 	default:
 		return "", nil, nil // Unreachable.
 	}
 }
-
-// Doctor will validate the required tools and environment variables are available.
-func (Ansible) Doctor() error {
-	pterm.DefaultHeader.Printfln("CheckEnvironment")
-	tbl := pterm.TableData{
-		[]string{"Status", "Check", "Value", "Notes"},
-		[]string{"✅", "GOOS", runtime.GOOS, ""},
-		[]string{"✅", "GOARCH", runtime.GOARCH, ""},
-		[]string{"✅", "GOROOT", runtime.GOROOT(), ""},
-		[]string{"✅", "GOPATH", os.Getenv("GOPATH"), ""},
-	}
-
-	defer func(tbl *pterm.TableData) {
-		primary := pterm.NewStyle(pterm.FgLightWhite, pterm.BgGray, pterm.Bold)
-
-		if err := pterm.DefaultTable.WithHasHeader().
-			WithBoxed(true).
-			WithHeaderStyle(primary).
-			WithData(*tbl).Render(); err != nil {
-			pterm.Error.Printf(
-				"pterm.DefaultTable.WithHasHeader of variable information failed. Continuing...\n%v",
-				err,
-			)
-		}
-	}(&tbl)
-	var errorCount int
-	_, tbl, err := checkEnvVar(&checkEnv{Name: "GALAXY_SERVER", IsSecret: false, IsRequired: true, Tbl: tbl, Notes: "required for defining target publish location"})
-	if err != nil {
-		errorCount++
-	}
-	_, tbl, err = checkEnvVar(&checkEnv{Name: "GALAXY_KEY", IsSecret: true, IsRequired: true, Tbl: tbl, Notes: "required for publishing"})
-	if err != nil {
-		errorCount++
-	}
-
-	output, err := sh.Output("ansible-galaxy", "--version")
-	if err != nil {
-		errorCount++
-		tbl = append(tbl, []string{"❌", "ansible-galaxy", "ansible-galaxy", "required for building and publishing"})
-	} else {
-		re := regexp.MustCompile(`(?m)^ansible-galaxy.*$`)
-		match := re.FindString(output)
-		pterm.Debug.Printfln("output: %s", output)
-
-		tbl = append(tbl, []string{"✅", "ansible-galaxy", match, "required cli tool"})
-	}
-	// using sh.Output to get the version of python3, and append to tbl
-	version, err := sh.Output("python3", "--version")
-	if err != nil {
-		errorCount++
-		tbl = append(tbl, []string{"❌", "python3", "python3", "required for building and publishing"})
-	} else {
-		tbl = append(tbl, []string{"✅", "python3", version, "required for building and publishing"})
-	}
-
-	if errorCount > 0 {
-		pterm.Error.Printfln("required checks failed: %d", errorCount)
-		return fmt.Errorf("failed %d checks", errorCount)
-	}
-	return nil
-}
-*/
