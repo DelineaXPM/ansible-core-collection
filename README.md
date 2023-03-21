@@ -8,9 +8,12 @@ Ansible core collection for Delinea DevOps Secrets Vault.
 
 ### Lookup plugins
 
-| Name             | Description                                        |
-| ---------------- | -------------------------------------------------- |
-| delinea.core.dsv | Look up secrets from Delinea DevOps Secrets Vault. |
+> **Note**
+> Review the plugin documentation linked below for example usage.
+
+| Name                                                                                                      | Description                                        |
+| --------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| [delinea.core.dsv](https://docs.ansible.com/ansible/latest/collections/community/general/dsv_lookup.html) | Look up secrets from Delinea DevOps Secrets Vault. |
 
 ## Using this collection
 
