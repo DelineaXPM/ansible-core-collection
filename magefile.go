@@ -31,6 +31,12 @@ const (
 
 	// ArtifactDir is the directory to store artifacts (ignored by git).
 	ArtifactDir = ".artifacts"
+
+	// PluginDocPathPattern is the pattern to find plugins for documentation for ansible-doc-extractor.
+	PluginDocPathPattern = "plugins/lookup/dsv.py"
+
+	// DocDirectory is the directory to store documentation.
+	DocDirectory = "docs"
 )
 
 // ✨ Init unfolds initial environment for productive work.
@@ -84,6 +90,7 @@ func Clean() {
 
 // 🧪 Test runs unit and sanity tests.
 func Test() error {
+	magetoolsutils.CheckPtermDebug()
 	if err := TestUnit(); err != nil {
 		return err
 	}
@@ -442,10 +449,11 @@ func venvRun(cmd string, args ...string) error  { return venvRunBinary(false, cm
 func venvRunV(cmd string, args ...string) error { return venvRunBinary(true, cmd, args...) }
 
 func venvRunBinary(useStdout bool, cmd string, args ...string) error {
+	magetoolsutils.CheckPtermDebug()
 	path := filepath.Join(CacheDir, "venv")
 	venvBin := filepath.Join(path, "bin")
 	runnable := filepath.Join(venvBin, cmd)
-
+	pterm.Debug.Printfln("runnable: %s", runnable)
 	env := map[string]string{
 		"PATH":        venvBin + ":" + os.Getenv("PATH"),
 		"VIRTUAL_ENV": path,
@@ -564,4 +572,26 @@ func checkEnvVar(ckv *checkEnv) (string, pterm.TableData, error) {
 	default:
 		return "", nil, nil // Unreachable.
 	}
+}
+
+// ExportPluginDocs runs ansible-doc-extractor to generate a markdown file of the plugin documentation.
+func ExportPluginDocs() error {
+	pterm.DefaultHeader.Println("Exporting plugin docs")
+
+	if !venvBinExists("ansible-doc-extractor") {
+		if err := venvInstall("ansible-doc-extractor"); err != nil {
+			return fmt.Errorf("failed to install ansible-doc-extractor: %w", err)
+		}
+	} else {
+		pterm.Info.Println("ansible-doc-extractor already installed")
+	}
+	if err := mkdir(DocDirectory); err != nil {
+		return fmt.Errorf("failed to create doc directory: %w", err)
+	}
+	return venvRunBinary(true,
+		"ansible-doc-extractor",
+		DocDirectory,
+		PluginDocPathPattern,
+		"--markdown",
+	)
 }

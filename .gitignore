@@ -201,3 +201,5 @@ cython_debug/
 # Per docs: https://github.com/ansible-community/antsibull-changelog/blob/main/docs/changelogs.rst
 changelogs/.plugin-cache.yaml
 mage_output_file.go
+
+.DS_Store
