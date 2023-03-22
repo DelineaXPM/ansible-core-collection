@@ -1,3 +1,4 @@
 .devcontainer/
 .trunk/
 .github/
+vendor/

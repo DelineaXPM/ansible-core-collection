@@ -1,11 +1,13 @@
 ---
-name: release
+name: test
 
 on:
+  push:
+    branches: ["main"]
+  pull_request:
   workflow_dispatch:
 
 env:
-  ANSIBLE: "stable-2.13"
   HERE: "./ansible_collections/delinea/core"
 
 concurrency:
@@ -13,10 +15,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  release:
-    name: release
+  check:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    name: ansible-${{ matrix.ansible }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: true
+      matrix:
+        ansible:
+          - stable-2.10
+          - stable-2.11
+          - stable-2.12
+          - stable-2.13
+          - devel
 
     steps:
       - name: Pull
@@ -35,28 +46,21 @@ jobs:
         with:
           aqua_version: v1.32.0
           enable_aqua_install: true
-          aqua_opts: "--tags release"
+          aqua_opts: "--tags tests"
           working_directory: ${{ env.HERE }}
 
       - name: Init
-        run: mage initCI ${{ env.ANSIBLE }}
+        run: mage initCI ${{ matrix.ansible }}
         working-directory: ${{ env.HERE }}
 
-      - name: Env
-        run: mage doctor
+      - name: Unit
+        run: mage testUnit
         working-directory: ${{ env.HERE }}
 
       - name: Sanity
         run: mage testSanity
         working-directory: ${{ env.HERE }}
 
-      - name: Build
-        run: mage build
-        working-directory: ${{ env.HERE }}
-
-      - name: Publish
-        run: mage publish
-        working-directory: ${{ env.HERE }}
-        env:
-          GALAXY_SERVER: "https://galaxy.ansible.com/"
-          #GALAXY_KEY: ""
+      - uses: codecov/codecov-action@v3
+        with:
+          fail_ci_if_error: false

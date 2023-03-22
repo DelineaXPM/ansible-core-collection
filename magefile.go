@@ -3,372 +3,565 @@
 package main
 
 import (
+	"archive/tar"
+	"compress/gzip"
+	"errors"
 	"fmt"
+	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
+	"time"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/magefile/mage/mg"
 	"github.com/magefile/mage/sh"
 	"github.com/pterm/pterm"
-
-	// mage:import
-	"github.com/sheldonhull/magetools/gotools"
+	"github.com/sheldonhull/magetools/ci"
 	"github.com/sheldonhull/magetools/pkg/magetoolsutils"
 )
 
 const (
-	// collectionName is the name of the Ansible collection.
-	collectionName = "delinea.core"
+	// AnsibleLatest defines the latest stable version we use and support.
+	AnsibleLatest = "stable-2.13"
 
-	// VenvDirectory is the directory to keep the Ansible virtual environments.
-	VenvDirectory = ".cache"
+	// CacheDir is the directory to keep virtual environments (ignored by git).
+	CacheDir = ".cache"
 
-	// Namespace is the ansible collection namespace.
-	Namespace = "delinea"
-
-	// Collection is the ansible collection name.
-	Collection = "core"
-	// VenvToolingDirectory is the venv for tooling.
-	VenvToolingDirectory = "tooling"
-
-	// PermissionUserReadWriteExecute is the octal permission for read, write, & execute only for owner.
-	PermissionUserReadWriteExecute = 0o0700
-
-	// PermissionUserReadWriteExecuteGroupReadOnly Chmod 0755 (chmod a+rwx,g-w,o-w,ug-s,-t) sets permissions so that, (U)ser / owner can read, can write and can execute. (G)roup can read, can't write and can execute. (O)thers can read, can't write and can execute.
-	PermissionUserReadWriteExecuteGroupReadOnly = 0o755
-
-	// PermissionReadWriteSearchAll is the octal permission for all users to read, write, and search a file.
-	PermissionReadWriteSearchAll = 0o0777
-
-	// changelogFragments is the directory to store user created changelog fragments.
-	changelogFragments = "changelogs/fragments"
+	// ArtifactDir is the directory to store artifacts (ignored by git).
+	ArtifactDir = ".artifacts"
 )
 
-// AnsibleVersions is a list of Ansible versions to test and create virtual environments for.
-var AnsibleVersions = []string{
-	"stable-2.10",
-	"stable-2.11",
-	"stable-2.12",
-	"stable-2.13",
-	"devel",
-}
-
-// Ansible contains the commands for automation with Ansible.
-type Ansible mg.Namespace
-
-// Venv contains commands that are specifically isolated to the target venv.
-type Venv mg.Namespace
-
-// Py contains the python related commands not specific for venv.
-type Py mg.Namespace
-
-// Job contains grouped sets of commands to simplify workflow
-type Job mg.Namespace
-
-func checklinux() {
-	if runtime.GOOS == "windows" {
-		_ = mg.Fatalf(1, "this command is only supported on Linux or Darwin and you are on: %s", runtime.GOOS)
-	}
-}
-
-func Init() {
+// ✨ Init unfolds initial environment for productive work.
+func Init() error {
 	magetoolsutils.CheckPtermDebug()
 
-	mg.Deps(
-		gotools.Go{}.Init,
-	)
+	if ci.IsCI() {
+		pterm.Error.Println("CI should explicitly call `mage initCI <version_name>`")
+		return nil
+	}
 
-	pterm.Success.Println("Init()")
+	if err := ansibleInit(AnsibleLatest); err != nil {
+		return err
+	}
+	pterm.Success.Printfln(
+		"to activate virtual environment run:\n\tsource ./.cache/venv/bin/activate",
+	)
+	return nil
 }
 
-// Clean removes the local .artifact and .cache/ directories.
+// 🎩 InitCI initializes a new Python virtual environment with given version of Ansible installed.
+func InitCI(version string) error {
+	return ansibleInit(version)
+}
+
+// 🧹 Clean removes '.artifact/', '.cache/', 'tests/output/' directories from the project.
 func Clean() {
-	_ = os.RemoveAll(".artifacts/")
-	_ = os.RemoveAll(".cache/")
-	_ = os.Mkdir(".artifacts/", PermissionUserReadWriteExecuteGroupReadOnly)
-	_ = os.Mkdir(".cache/", PermissionUserReadWriteExecuteGroupReadOnly)
-	pterm.Success.Println("reset .artifacts and .cache/ directories")
+	magetoolsutils.CheckPtermDebug()
+
+	if err := os.RemoveAll(ArtifactDir); err != nil {
+		pterm.Error.Printfln("🧹 failed to delete %q: %v", ArtifactDir, err)
+	} else {
+		pterm.Success.Printfln("🧹 %q", ArtifactDir)
+	}
+
+	if err := os.RemoveAll(CacheDir); err != nil {
+		pterm.Error.Printfln("🧹 failed to delete %q: %v", CacheDir, err)
+	} else {
+		pterm.Success.Printfln("🧹 %q", CacheDir)
+	}
+
+	testsOutput := filepath.Join("tests", "output")
+	if err := os.RemoveAll(testsOutput); err != nil {
+		pterm.Error.Printfln("🧹 failed to delete %q: %v", testsOutput, err)
+	} else {
+		pterm.Success.Printfln("🧹 %q", testsOutput)
+	}
+
+	pterm.Info.Println("🧹 Clean() completed")
 }
 
-// ➕ InstallCollection will install the collection.
-func (Ansible) InstallCollection() error {
-	return sh.Run("ansible-galaxy", "collection", "install", collectionName)
+// 🧪 Test runs unit and sanity tests.
+func Test() error {
+	if err := TestUnit(); err != nil {
+		return err
+	}
+	return TestSanity()
 }
 
-// ➕ InstallCollection will install the collection.
-func (Ansible) UninstallCollection() error {
-	return sh.Run("ansible-galaxy", "collection", "install", collectionName)
+// 🧪 TestSanity runs sanity tests in containers.
+func TestSanity() error {
+	magetoolsutils.CheckPtermDebug()
+
+	pterm.DefaultHeader.Println("ansible-test sanity")
+
+	if !venvBinExists("ansible-test") {
+		pterm.Error.Println("run `mage init` first")
+		return nil
+	}
+
+	now := time.Now()
+	if err := venvRunV(
+		"ansible-test", "sanity", "--docker", "--color", "yes",
+		"--exclude", "vendor/", "--exclude", ".devcontainer/",
+	); err != nil {
+		return err
+	}
+	pterm.Success.Printfln("sanity tests (took: %s)", time.Since(now))
+	return nil
 }
 
-// initVenvParentDirectory is the directory containing all the venv directories for various versions.
-func initVenvParentDirectory() error {
-	if err := os.MkdirAll(VenvDirectory, PermissionUserReadWriteExecuteGroupReadOnly); err != nil {
+// 🧪 TestUnit runs unit tests in containers.
+func TestUnit() error {
+	magetoolsutils.CheckPtermDebug()
+
+	pterm.DefaultHeader.Println("ansible-test units")
+
+	if !venvBinExists("ansible-test") {
+		pterm.Error.Println("run `mage init` first")
+		return nil
+	}
+
+	testsOutput := filepath.Join("tests", "output")
+
+	if _, err := os.Stat(testsOutput); err == nil {
+		pterm.DefaultSection.Println("Cleanup old output:")
+		if err := os.RemoveAll(testsOutput); err != nil {
+			pterm.Error.Printfln("🧹 failed to delete %q: %v", testsOutput, err)
+			return nil
+		}
+		pterm.Success.Printfln("🧹 %q", testsOutput)
+	}
+
+	pterm.DefaultSection.Println("Unit Tests:")
+
+	now := time.Now()
+	if err := venvRunV(
+		"ansible-test", "units", "--docker", "--color", "yes", "--coverage",
+	); err != nil {
+		return err
+	}
+
+	pterm.Success.Printfln("unit tests (took: %s)", time.Since(now))
+
+	pterm.DefaultSection.Println("Code Coverage Report:")
+
+	if err := venvRun(
+		"ansible-test", "coverage", "xml", "-v", "--requirements",
+		"--group-by", "command", "--group-by", "version",
+	); err != nil {
+		return err
+	}
+	return venvRunV("ansible-test", "coverage", "report")
+}
+
+// 🔼 Bump increments version in the galaxy file of the collection, using yq.
+// Valid types are "major", "minor", "patch"
+func Bump(bumpType string) error {
+	pterm.DefaultHeader.Printfln("Version Bump")
+
+	galaxyYaml := "galaxy.yml"
+	current, err := sh.Output("yq", ".version", galaxyYaml)
+	if err != nil {
+		pterm.Error.Printfln("failed to get version from galaxy.yml:\n\t%v", err)
+		return err
+	}
+	current = strings.TrimSpace(current)
+	version, err := semver.StrictNewVersion(current)
+	if err != nil {
+		return err
+	}
+
+	var newVersion semver.Version
+	switch bumpType {
+	case "major":
+		newVersion = version.IncMajor()
+	case "minor":
+		newVersion = version.IncMinor()
+	case "patch":
+		newVersion = version.IncPatch()
+	default:
+		return fmt.Errorf("unknown bump type: %s", bumpType)
+	}
+	bumped := newVersion.String()
+
+	pterm.Info.Printfln("%q: %q -> %q", bumpType, current, bumped)
+
+	err = sh.RunV(
+		"yq", "--inplace", fmt.Sprintf(".version = \"%s\"", bumped), galaxyYaml,
+	)
+
+	if err != nil {
+		pterm.Error.Printfln("failed to bump version:\n\t%v", err)
 		return err
 	}
 	return nil
 }
 
-// Changelog is the directory for tooling like ansibull-changelog.
-//
-// The first time you run this, you have to initialize the changelog via: `.cache/tooling/bin/antsibull-changelog init .`
-func (Ansible) Changelog() error {
+// 📜 Changelog helps with creating a release changelog.
+func Changelog() error {
 	magetoolsutils.CheckPtermDebug()
 
-	checklinux()
-	pterm.DefaultHeader.Println("Changelog()")
+	pterm.DefaultHeader.Println("antsibull-changelog")
 
-	// No fancy semver matching, just trust the input.
-	pterm.Info.Println("Enter semver version (example: 1.0.x)")
-	versionSemver, _ := pterm.DefaultInteractiveTextInput.
-		WithMultiLine(false).Show()
-	pterm.Info.Printfln("You answered: %s", versionSemver)
+	if !venvExists() {
+		pterm.Error.Println("run `mage init` first")
+		return nil
+	}
+	if !venvBinExists("antsibull-changelog") {
+		if err := venvInstall("antsibull-changelog"); err != nil {
+			return err
+		}
+	}
 
-	changelogFragmentFile := filepath.Join(changelogFragments, versionSemver+".yml")
+	galaxyYaml := "galaxy.yml"
+	current, err := sh.Output("yq", ".version", galaxyYaml)
+	if err != nil {
+		pterm.Error.Printfln("failed to get version from galaxy.yml:\n\t%v", err)
+		return err
+	}
 
+	changeFile := filepath.Join("changelogs", "fragments", current+".yml")
+	if _, err := os.Stat(changeFile); err == nil {
+		pterm.Error.Printfln("file %q already exists", changeFile)
+		return errors.New("already exists")
+	}
+
+	pterm.Info.Printfln("Preparing changelog for version %q", current)
 	pterm.Info.Println("Enter release summary")
-	releaseNotes, _ := pterm.DefaultInteractiveTextInput.
-		WithMultiLine(true).Show()
-	pterm.Info.Printfln("You answered: %s", releaseNotes)
-
-	if err := os.WriteFile(changelogFragmentFile, []byte("---\nrelease_summary:\n    "+releaseNotes), PermissionReadWriteSearchAll); err != nil {
+	summary, err := pterm.DefaultInteractiveTextInput.WithMultiLine(true).Show()
+	if err != nil {
 		return err
 	}
-	venvPath := filepath.Join(VenvDirectory, VenvToolingDirectory)
-	venvPathBin := filepath.Join(venvPath, "bin")
-	pypip := filepath.Join(venvPath, "bin", "pip3")
+	pterm.Info.Printfln("You answered:\n%s", summary)
 
-	if err := sh.Run("python3", "-m", "venv", venvPath); err != nil {
-		pterm.Error.Printfln("error installing requirements: %s", err)
-		return err
-	}
-	pterm.Success.Printfln("initialized venvpath: %s", venvPath)
-	if err := sh.Run(pypip, "install", "antsibull-changelog", "--disable-pip-version-check"); err != nil {
-		pterm.Error.Printfln("error installing wheel in venv %s: %v", venvPath, err)
-		return err
-	}
-	pterm.Success.Println("installed antsibull-changelog")
-	// venvPathBin := filepath.Join(venvPath, "bin")
-	antsibullchangelog := filepath.Join(venvPath, "bin", "antsibull-changelog")
+	summary = strings.ReplaceAll(summary, "\n", "\n    ")
+	summary = strings.TrimSpace(summary)
 
-	pathVar := os.Getenv("PATH")
-	newPath := venvPathBin + ":" + pathVar // NOTE: works for mac/linux
-
-	cmd := exec.Cmd{
-		Path: antsibullchangelog,
-		Args: []string{
-			"", // without blank go trims out the subcommand as no flag.
-			"release",
-		},
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
-		Env: []string{
-			fmt.Sprintf("PATH=%s", newPath),
-			fmt.Sprintf("VIRTUAL_ENV=%s", venvPath),
-		},
+	final := "---\nrelease_summary: "
+	if !strings.Contains(summary, "\n") {
+		final += summary + "\n"
+	} else {
+		final += "|\n    " + summary + "\n"
 	}
-	pterm.Debug.Printfln("cmd: %v", cmd.String())
-	if err := cmd.Run(); err != nil {
-		pterm.Warning.Printfln("error: %v", err)
-	}
-	pterm.Success.Printfln("created venv for: %s", VenvToolingDirectory)
-	return nil
-}
-
-// 🐍 Init sets up the venv environment (without Ansible yet).
-func (Py) Init() error {
-	if err := initVenvParentDirectory(); err != nil {
+	if err := writeFile(changeFile, final); err != nil {
 		return err
 	}
 
-	for _, version := range AnsibleVersions {
-		if err := sh.Run("python3", "-m", "venv", filepath.Join(VenvDirectory, version)); err != nil {
-			pterm.Error.Printfln("error installing requirements: %s", err)
-			return err
-		}
-		pterm.Success.Printfln("created venv for: %s", version)
-	}
-
-	pterm.Success.Println("(Py) Init()")
-	return nil
+	return venvRunV("antsibull-changelog", "release", "-v")
 }
 
-func (Venv) Install() error {
-	if err := os.MkdirAll(VenvDirectory, PermissionUserReadWriteExecuteGroupReadOnly); err != nil {
-		return err
-	}
-
-	downloadLink := "https://github.com/ansible/ansible/archive/%s.tar.gz"
-
-	for _, version := range AnsibleVersions {
-		venvPath := filepath.Join(VenvDirectory, version)
-		pypip := filepath.Join(venvPath, "bin", "pip3")
-
-		pterm.Info.Printfln("installing requirements in venv: %s", venvPath)
-
-		err := sh.Run(pypip, "install", "wheel", "--disable-pip-version-check")
-		if err != nil {
-			pterm.Error.Printfln("error installing wheel in venv %s: %v", venvPath, err)
-		}
-
-		err = sh.Run(pypip, "install", fmt.Sprintf(downloadLink, version), "--disable-pip-version-check")
-		if err != nil {
-			pterm.Error.Printfln("error installing ansible in venv %s: %v", venvPath, err)
-		}
-
-		pterm.Success.Printfln("created venv for: %s", version)
-	}
-	pterm.Success.Println("(Venv) Init()")
-	return nil
-}
-
-// ➕ InstallBase (parameters: target) will install the base Ansible installation based on the provided target version.
-func (Ansible) InstallBase(target string) error {
-	if target == "" {
-		pterm.Error.Println("no target was provided, can't proceed")
-		pterm.Error.Println("You might try providing a value such as: \n\n" +
-			"- stable-2.10\n" +
-			"- stable-2.11\n" +
-			"- stable-2.12\n" +
-			"- stable-2.13\n" +
-			"- devel",
-		)
-		return fmt.Errorf("missing parameter for InstallBase")
-	}
-	return sh.RunV(
-		"python3", "-m", "pip",
-		"install", fmt.Sprintf("https://github.com/ansible/ansible/archive/%s.tar.gz", target),
-		"--disable-pip-version-check",
-		"--user",
-	)
-}
-
-// 🧪 TestSanity will run ansible-test with the docker option.
-func (Ansible) TestSanity() error {
-	return sh.Run("ansible-test", "sanity", "--docker", "-v", "--color", "--coverage")
-}
-
-// 🧪 TestUnit will run ansible-test with the docker option.
-func (Ansible) TestUnit() error {
-	return sh.Run("ansible-test", "unit", "--docker", "-v", "--color", "--coverage")
-}
-
-// 🧪 Test will run both unit and Sanity tests.
-func (Ansible) Test() {
-	mg.SerialDeps(
-		Ansible.TestSanity,
-		Ansible.TestUnit,
-	)
-}
-
-// 📈 Coverage will run generate code coverage data for ansible-test.
-func (Ansible) Coverage() error {
-	return sh.Run(
-		"ansible-test",
-		"coverage",
-		"xml",
-		"-v",
-		"--requirements",
-		"--group-by",
-		"command",
-		"--group-by",
-		"version",
-	)
-}
-
-// Setup creates the python venv and installs all the target ansible versions in each.
-func (Job) Setup() {
-	mg.SerialDeps(
-		Py{}.Init,
-		Venv{}.Install,
-	)
-}
-
-// 🧪 TestSanity will run ansible-test with the docker option against all available versions.
-func (Venv) TestSanity() error {
+// 📦 Build packages the collection into a publishable archive.
+func Build() error {
 	magetoolsutils.CheckPtermDebug()
-	// needs linux as i don't handle different env path setup
-	checklinux()
-	prog, _ := pterm.DefaultProgressbar.
-		WithTitle("running ansible-test").
-		WithTotal(len(AnsibleVersions)).
-		WithCurrent(0).
-		WithMaxWidth(pterm.GetTerminalWidth() / 2). //nolint:gomnd // allow magic num
-		WithTitle("TestSanity").
-		WithRemoveWhenDone(false).
-		WithShowElapsedTime(true).Start()
 
-	for _, version := range AnsibleVersions {
-		venvPath := filepath.Join(VenvDirectory, version)
-		venvPathBin := filepath.Join(venvPath, "bin")
-		ansibleTest := filepath.Join(venvPath, "bin", "ansible-test")
-		activate := filepath.Join(venvPath, "bin", "activate")
+	pterm.DefaultHeader.Println("ansible-galaxy collection build")
 
-		ansibleTestPath, err := filepath.Abs(ansibleTest)
-		if err != nil {
-			pterm.Warning.Printfln("error in resolving abs ansibleTestPath: %v", err)
+	if !venvBinExists("ansible-galaxy") {
+		pterm.Error.Println("run `mage init` first")
+		return nil
+	}
+
+	if err := venvRun(
+		"ansible-galaxy", "collection", "build", "-v", "--force",
+		"--output-path", filepath.Join(ArtifactDir, ""),
+	); err != nil {
+		return err
+	}
+
+	path, err := archiveFind("delinea-core*.tar.gz")
+	if err != nil {
+		return err
+	}
+	files, err := archiveContent(path)
+	if err != nil {
+		return err
+	}
+
+	pterm.Info.Printfln("%q:\n\t- %s", path, strings.Join(files, "\n\t- "))
+	return nil
+}
+
+// 🚀 Publish sends archived collection to Ansible Galaxy.
+func Publish() error {
+	magetoolsutils.CheckPtermDebug()
+
+	pterm.DefaultHeader.Println("ansible-galaxy collection publish")
+
+	if !venvBinExists("ansible-galaxy") {
+		pterm.Error.Println("run `mage init` first")
+		return nil
+	}
+
+	gxServer, gxKey := os.Getenv("GALAXY_SERVER"), os.Getenv("GALAXY_KEY")
+	if gxServer == "" {
+		pterm.Error.Printfln("env variable `GALAXY_SERVER` is required, but not set. Skipping publish.")
+		return fmt.Errorf("missing required environment variables")
+	}
+	if gxKey == "" {
+		pterm.Error.Printfln("env variable `GALAXY_KEY` is required, but not set. Skipping publish.")
+		return fmt.Errorf("missing required environment variables")
+	}
+
+	path, err := archiveFind("delinea-core*.tar.gz")
+	if err != nil {
+		pterm.Error.Println("run `mage build` first")
+		return err
+	}
+
+	pterm.DefaultSection.Printfln("Publishing `%s` to %s", path, gxServer)
+
+	now := time.Now()
+	if err := venvRunV(
+		"ansible-galaxy", "collection", "publish", "-v",
+		"--server", gxServer, "--api-key", gxKey, path,
+	); err != nil {
+		return fmt.Errorf("running `ansible-galaxt collection publish` failed")
+	}
+	pterm.Success.Printfln("Published collection (took: %s)", time.Since(now))
+	return nil
+}
+
+// 🔍 Doctor will validate the required tools and environment variables are available.
+func Doctor() error {
+	magetoolsutils.CheckPtermDebug()
+
+	pterm.DefaultHeader.Println("Check Environment")
+
+	if !venvExists() {
+		pterm.Error.Println("run `mage init` first")
+		return nil
+	}
+
+	primary := pterm.NewStyle(pterm.FgLightWhite, pterm.BgGray, pterm.Bold)
+	printer := pterm.DefaultTable.WithHasHeader().WithBoxed().WithHeaderStyle(primary)
+
+	tbl := pterm.TableData{
+		[]string{"Status", "Check", "Value", "Notes"},
+		[]string{"✅", "Go version", runtime.Version(), ""},
+		[]string{"✅", "GOOS", runtime.GOOS, ""},
+		[]string{"✅", "GOARCH", runtime.GOARCH, ""},
+		[]string{"✅", "GOROOT", runtime.GOROOT(), ""},
+		[]string{"✅", "GOPATH", os.Getenv("GOPATH"), ""},
+	}
+
+	defer func() {
+		if err := printer.WithData(tbl).Render(); err != nil {
+			pterm.Error.Printf("pterm.TablePrinter: Render() failed. Continuing...\n%v", err)
 		}
+	}()
 
-		homeDir, err := os.UserHomeDir()
-		if err != nil {
-			return err
-		}
+	errorCount := 0
 
-		_ = os.Setenv("VIRTUAL_ENV", venvPath)
-		pathVar := os.Getenv("PATH")
-		newPath := venvPathBin + ":" + pathVar // NOTE: works for mac/linux
-		if err := os.Setenv("PATH", newPath); err != nil {
-			return err
-		}
+	_, tbl, err := checkEnvVar(&checkEnv{Name: "GALAXY_SERVER", IsSecret: false, IsRequired: true, Tbl: tbl, Notes: "required for defining target publish location"})
+	if err != nil {
+		errorCount++
+	}
+	_, tbl, err = checkEnvVar(&checkEnv{Name: "GALAXY_KEY", IsSecret: true, IsRequired: true, Tbl: tbl, Notes: "required for publishing"})
+	if err != nil {
+		errorCount++
+	}
 
-		pterm.Debug.Printfln("PATH: %s", newPath)
-		pterm.Debug.Printfln("running: %s", activate)
-		pterm.Debug.Printfln("ansibleTestPath: %s", ansibleTestPath)
-		collectionDirectory := filepath.Join(
-			homeDir,
-			".ansible",
-			"collections",
-			"ansible_collections",
-			Namespace,
-			Collection,
-		)
-		pterm.Debug.Printfln("collectionDirectory: %q", collectionDirectory)
-		if _, err := os.Stat(collectionDirectory); os.IsNotExist(err) {
-			pterm.Error.Println(
-				"the target collection doesn't exist. It's likey you need to run:\n\n\tmage ansible:installcollection",
-			)
-		}
-		prog.UpdateTitle(fmt.Sprintf("ansible-test: %s", version))
-		pterm.Debug.Printfln("To run a local test outside mage change directories to collectionDirectory, and then run the command debug will output")
-		cmd := exec.Cmd{
-			Path: ansibleTestPath,
-			Dir:  collectionDirectory,
-			Args: []string{
-				"",
-				"sanity",
-				"--docker",
-				"-v",
-				"--color",
-				"--coverage",
-				"--skip-test",
-				"symlinks,shebang", // causes issues with project files like devcontainer
-			}, // empty string required to avoid subcommand without flags disappearing
-			Stdout: nil,
-			Stderr: os.Stderr,
-			Env: []string{
-				fmt.Sprintf("PATH=%s", newPath),
-				fmt.Sprintf("VIRTUAL_ENV=%s", venvPath),
-				fmt.Sprintf("HOME=%s", homeDir),
-			},
-		}
-		pterm.Debug.Printfln("cmd: %v", cmd.String())
+	output, err := venvOutput("ansible-galaxy", "--version")
+	if err != nil {
+		errorCount++
+		tbl = append(tbl, []string{"❌", "ansible-galaxy", "ansible-galaxy", "required for building and publishing"})
+	} else {
+		output = strings.Split(output, "\n")[0]
+		tbl = append(tbl, []string{"✅", "ansible-galaxy", output, "required cli tool"})
+	}
+	version, err := venvOutput("python3", "--version")
+	if err != nil {
+		errorCount++
+		tbl = append(tbl, []string{"❌", "python3", "python3", "required for building and publishing"})
+	} else {
+		tbl = append(tbl, []string{"✅", "python3", version, "required for building and publishing"})
+	}
 
-		prog.Increment()
-
-		if err := cmd.Run(); err != nil {
-			pterm.Warning.Printfln("error: %v", err)
-		}
+	if errorCount > 0 {
+		pterm.Error.Printfln("required checks failed: %d", errorCount)
+		return fmt.Errorf("failed %d checks", errorCount)
 	}
 	return nil
+}
+
+// ----------------------------------- //
+//          Helper Functions           //
+// ----------------------------------- //
+
+func ansibleInit(version string) error {
+	magetoolsutils.CheckPtermDebug()
+
+	pterm.DefaultHeader.Printfln("Ansible %s Init()", AnsibleLatest)
+
+	link := fmt.Sprintf("https://github.com/ansible/ansible/archive/%s.tar.gz", version)
+
+	mg.SerialDeps(
+		venvInit,
+		func() error { return venvInstall("wheel") },
+		func() error { return venvInstall(link) },
+	)
+	return nil
+}
+
+func venvInit() error {
+	if err := mkdir(CacheDir); err != nil {
+		return err
+	}
+
+	path := filepath.Join(CacheDir, "venv")
+	err := sh.Run("python3", "-m", "venv", "--clear", path)
+	if err != nil {
+		pterm.Error.Printfln("error creating a new virtual environment: %s", err)
+		return err
+	}
+
+	pterm.Success.Printfln("created a new virtual environment: %s", path)
+	return nil
+}
+
+func venvExists() bool { return venvBinExists("pip3") }
+
+func venvBinExists(name string) bool {
+	_, err := os.Stat(filepath.Join(CacheDir, "venv", "bin", name))
+	return err == nil
+}
+
+func venvInstall(name string) error {
+	now := time.Now()
+	if err := venvRun("pip3", "install", name, "--disable-pip-version-check"); err != nil {
+		pterm.Error.Printfln("error installing name %q: %s", name, err)
+		return err
+	}
+	pterm.Success.Printfln(" - installed %q (took: %s)", name, time.Since(now))
+	return nil
+}
+
+func venvRun(cmd string, args ...string) error  { return venvRunBinary(false, cmd, args...) }
+func venvRunV(cmd string, args ...string) error { return venvRunBinary(true, cmd, args...) }
+
+func venvRunBinary(useStdout bool, cmd string, args ...string) error {
+	path := filepath.Join(CacheDir, "venv")
+	venvBin := filepath.Join(path, "bin")
+	runnable := filepath.Join(venvBin, cmd)
+
+	env := map[string]string{
+		"PATH":        venvBin + ":" + os.Getenv("PATH"),
+		"VIRTUAL_ENV": path,
+	}
+
+	if useStdout {
+		return sh.RunWithV(env, runnable, args...)
+	}
+	return sh.RunWith(env, runnable, args...)
+}
+
+func venvOutput(cmd string, args ...string) (string, error) {
+	path := filepath.Join(CacheDir, "venv")
+	venvBin := filepath.Join(path, "bin")
+	runnable := filepath.Join(venvBin, cmd)
+	env := map[string]string{
+		"PATH":        venvBin + ":" + os.Getenv("PATH"),
+		"VIRTUAL_ENV": path,
+	}
+	return sh.OutputWith(env, runnable, args...)
+}
+
+func writeFile(path string, data string) error {
+	const permBits = 0o777
+	return os.WriteFile(path, []byte(data), permBits)
+}
+
+func mkdir(path string) error {
+	const permBits = 0o755
+	return os.MkdirAll(path, permBits)
+}
+
+func archiveFind(pattern string) (string, error) {
+	archivePattern := filepath.Join(ArtifactDir, pattern)
+	archives, err := filepath.Glob(archivePattern)
+	if err != nil {
+		return "", err
+	}
+
+	switch {
+	case len(archives) == 0:
+		return "", fmt.Errorf("no archive found with pattern %q", archivePattern)
+
+	case len(archives) > 1:
+		return "", fmt.Errorf("more than one archive found with pattern %q", archivePattern)
+
+	default:
+		return archives[0], nil
+	}
+}
+
+func archiveContent(path string) ([]string, error) {
+	if _, err := os.Stat(path); err != nil {
+		return nil, err
+	}
+
+	r, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+
+	gzipReader, err := gzip.NewReader(r)
+	if err != nil {
+		return nil, err
+	}
+	defer gzipReader.Close()
+
+	tarReader := tar.NewReader(gzipReader)
+
+	files := []string{}
+	for {
+		header, err := tarReader.Next()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		files = append(files, header.Name)
+	}
+	return files, nil
+}
+
+type checkEnv struct {
+	Name       string
+	IsSecret   bool
+	IsRequired bool
+	Tbl        pterm.TableData
+	Notes      string
+}
+
+// checkEnvVar performs a check on environment variable and helps build a report summary of the failing conditions, missing variables, and bypasses logging if it's a secret.
+// Yes this could be replaced by the `env` package but I had this in place and the output is nice for debugging so I left it. - Sheldon 😀
+//
+//nolint:unparam // ignoring as i'll want to use the values in the future, ok to leave for now.
+func checkEnvVar(ckv *checkEnv) (string, pterm.TableData, error) {
+	value, ok := os.LookupEnv(ckv.Name)
+	switch {
+	case ok && ckv.IsSecret:
+		ckv.Tbl = append(ckv.Tbl, []string{"✅", ckv.Name, "***** secret set, but not logged *****", ckv.Notes})
+		return value, ckv.Tbl, nil
+
+	case ok && !ckv.IsSecret:
+		ckv.Tbl = append(ckv.Tbl, []string{"✅", ckv.Name, value, ckv.Notes})
+		return value, ckv.Tbl, nil
+
+	case !ok && ckv.IsRequired:
+		ckv.Tbl = append(ckv.Tbl, []string{"❌", ckv.Name, "", ckv.Notes})
+		return "", ckv.Tbl, fmt.Errorf("%s is required and not set", ckv.Name)
+
+	case !ok && !ckv.IsRequired:
+		ckv.Tbl = append(ckv.Tbl, []string{"👉", ckv.Name, "", ckv.Notes})
+		return "", ckv.Tbl, nil
+
+	default:
+		return "", nil, nil // Unreachable.
+	}
 }

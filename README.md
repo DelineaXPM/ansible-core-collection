@@ -18,7 +18,7 @@ Ansible core collection for Delinea DevOps Secrets Vault.
 
 Before using this collection, you need to install it with the Ansible Galaxy command-line tool:
 
-```bash
+```shell
 ansible-galaxy collection install delinea.core
 ```
 
@@ -35,7 +35,7 @@ Note that if you install the collection from Ansible Galaxy, it will not be upgr
 automatically when you upgrade the `ansible` package. To upgrade the collection to
 the latest available version, run the following command:
 
-```bash
+```shell
 ansible-galaxy collection install delinea.core --upgrade
 ```
 
@@ -43,7 +43,7 @@ You can also install a specific version of the collection, for example, if you n
 to downgrade when something is broken in the latest version (please report an issue
 in this repository). Use the following syntax to install version `1.0.0`:
 
-```bash
+```shell
 ansible-galaxy collection install delinea.core:==1.0.0
 ```
 
@@ -51,6 +51,4 @@ See [Ansible Using collections](https://docs.ansible.com/ansible/devel/user_guid
 
 ## Contributing
 
-Read the [Development Guide][developer.md] to learn about our build, test, and release processes.
-
-[developer.md]: https://github.com/DelineaXPM/ansible-core-collection/blob/main/DEVELOPER.md
+Read the [Development Guide](DEVELOPER.md) to learn about our build, test, and release processes.
