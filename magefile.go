@@ -588,7 +588,7 @@ func ExportPluginDocs() error {
 	if err := mkdir(DocDirectory); err != nil {
 		return fmt.Errorf("failed to create doc directory: %w", err)
 	}
-	return venvRunBinary(true,
+	return venvRunV(
 		"ansible-doc-extractor",
 		DocDirectory,
 		PluginDocPathPattern,
