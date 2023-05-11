@@ -18,7 +18,7 @@ github.com/gookit/color
 # github.com/lithammer/fuzzysearch v1.1.5
 ## explicit; go 1.15
 github.com/lithammer/fuzzysearch/fuzzy
-# github.com/magefile/mage v1.14.0
+# github.com/magefile/mage v1.15.0
 ## explicit; go 1.12
 github.com/magefile/mage/mg
 github.com/magefile/mage/sh
