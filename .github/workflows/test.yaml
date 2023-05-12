@@ -41,7 +41,7 @@ jobs:
           python-version: "3.10"
 
       - name: Aqua
-        uses: aquaproj/aqua-installer@61e2563dfe7674cbf74fe6ec212e444198a3bb00 # v2.0.2
+        uses: aquaproj/aqua-installer@294926f94b4233f202a2f03875c604f840cfed70 # v2.1.1
         continue-on-error: true
         with:
           aqua_version: v1.32.0
