@@ -3,7 +3,7 @@ module local
 go 1.18
 
 require (
-	github.com/Masterminds/semver/v3 v3.2.0
+	github.com/Masterminds/semver/v3 v3.2.1
 	github.com/magefile/mage v1.15.0
 	github.com/pterm/pterm v0.12.58
 	github.com/sheldonhull/magetools v1.0.0
