@@ -393,6 +393,28 @@ func Doctor() error {
 	return nil
 }
 
+// ExportPluginDocs runs ansible-doc-extractor to generate a markdown file of the plugin documentation.
+func ExportPluginDocs() error {
+	pterm.DefaultHeader.Println("Exporting plugin docs")
+
+	if !venvBinExists("ansible-doc-extractor") {
+		if err := venvInstall("ansible-doc-extractor"); err != nil {
+			return fmt.Errorf("failed to install ansible-doc-extractor: %w", err)
+		}
+	} else {
+		pterm.Info.Println("ansible-doc-extractor already installed")
+	}
+	if err := mkdir(DocDirectory); err != nil {
+		return fmt.Errorf("failed to create doc directory: %w", err)
+	}
+	return venvRunV(
+		"ansible-doc-extractor",
+		DocDirectory,
+		PluginDocPathPattern,
+		"--markdown",
+	)
+}
+
 // ----------------------------------- //
 //          Helper Functions           //
 // ----------------------------------- //
@@ -574,24 +596,3 @@ func checkEnvVar(ckv *checkEnv) (string, pterm.TableData, error) {
 	}
 }
 
-// ExportPluginDocs runs ansible-doc-extractor to generate a markdown file of the plugin documentation.
-func ExportPluginDocs() error {
-	pterm.DefaultHeader.Println("Exporting plugin docs")
-
-	if !venvBinExists("ansible-doc-extractor") {
-		if err := venvInstall("ansible-doc-extractor"); err != nil {
-			return fmt.Errorf("failed to install ansible-doc-extractor: %w", err)
-		}
-	} else {
-		pterm.Info.Println("ansible-doc-extractor already installed")
-	}
-	if err := mkdir(DocDirectory); err != nil {
-		return fmt.Errorf("failed to create doc directory: %w", err)
-	}
-	return venvRunV(
-		"ansible-doc-extractor",
-		DocDirectory,
-		PluginDocPathPattern,
-		"--markdown",
-	)
-}
