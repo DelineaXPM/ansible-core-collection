@@ -1,7 +1,7 @@
 ---
 namespace: delinea
 name: core
-version: 1.0.0
+version: 1.1.0
 readme: README.md
 authors:
   - Delinea (https://delinea.com/)
@@ -25,6 +25,7 @@ homepage: https://github.com/DelineaXPM/ansible-core-collection
 issues: https://github.com/DelineaXPM/ansible-core-collection/issues
 build_ignore:
   # Directories:
+  - .artifacts
   - .cache
   - .devcontainer
   - .github
