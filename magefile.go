@@ -24,7 +24,7 @@ import (
 
 const (
 	// AnsibleLatest defines the latest stable version we use and support.
-	AnsibleLatest = "stable-2.13"
+	AnsibleLatest = "stable-2.15"
 
 	// CacheDir is the directory to keep virtual environments (ignored by git).
 	CacheDir = ".cache"
@@ -595,4 +595,3 @@ func checkEnvVar(ckv *checkEnv) (string, pterm.TableData, error) {
 		return "", nil, nil // Unreachable.
 	}
 }
-

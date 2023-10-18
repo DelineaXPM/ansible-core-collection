@@ -1,3 +1,0 @@
----
-minor_changes:
-  - dsv lookup plugin - add optional ``data_key`` parameter for filtering secret data.

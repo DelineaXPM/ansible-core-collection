@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
 
 env:
-  ANSIBLE: "stable-2.13"
+  ANSIBLE: "stable-2.15"
   HERE: "./ansible_collections/delinea/core"
 
 concurrency:
