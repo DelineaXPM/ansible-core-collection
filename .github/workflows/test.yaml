@@ -46,7 +46,6 @@ jobs:
           aqua_version: v1.32.0
           enable_aqua_install: true
           aqua_opts: "--tags installfirst"
-          working_directory: ${{ env.HERE }}
       - name: Aqua
         uses: aquaproj/aqua-installer@294926f94b4233f202a2f03875c604f840cfed70 # v2.1.1
         continue-on-error: true
@@ -54,11 +53,9 @@ jobs:
           aqua_version: v1.32.0
           enable_aqua_install: true
           aqua_opts: "--tags tests"
-          working_directory: ${{ env.HERE }}
 
       - name: Init
         run: mage initCI ${{ matrix.ansible }}
-        working-directory: ${{ env.HERE }}
 
       - name: Unit
         run: mage testUnit
