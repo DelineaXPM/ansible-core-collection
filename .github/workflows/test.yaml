@@ -38,7 +38,7 @@ jobs:
       - name: Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.10"
+          python-version: "3.11"
 
       - name: Aqua
         uses: aquaproj/aqua-installer@294926f94b4233f202a2f03875c604f840cfed70 # v2.1.1
@@ -47,27 +47,32 @@ jobs:
           aqua_version: v2.21.3
           enable_aqua_install: true
           aqua_opts: "--tags installfirst"
+          working-directory: ${{ env.HERE }}
 
       - name: update-github-path-with-aqua
+        working-directory: ${{ env.HERE }}
         run: |
           echo  "${AQUA_ROOT_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/aquaproj-aqua}/bin/aqua" >> $GITHUB_PATH
 
       - name: aqua-install-tooling
+        working-directory: ${{ env.HERE }}
         run: |
           aqua install --tags installfirst
           aqua install --tags tests
 
       - name: Init
+        working-directory: ${{ env.HERE }}
         run: mage initCI ${{ matrix.ansible }}
 
       - name: Unit
-        run: mage testUnit
         working-directory: ${{ env.HERE }}
+        run: mage testUnit
 
       - name: Sanity
-        run: mage testSanity
         working-directory: ${{ env.HERE }}
+        run: mage testSanity
 
       - uses: codecov/codecov-action@v3
         with:
           fail_ci_if_error: false
+          working-directory: ${{ env.HERE }}
