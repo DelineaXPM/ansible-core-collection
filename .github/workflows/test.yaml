@@ -23,9 +23,9 @@ jobs:
       fail-fast: true
       matrix:
         ansible:
-          - stable-2.13
           - stable-2.14
           - stable-2.15
+          - stable-2.16
           - devel
 
     steps:
@@ -43,23 +43,35 @@ jobs:
         uses: aquaproj/aqua-installer@294926f94b4233f202a2f03875c604f840cfed70 # v2.1.1
         continue-on-error: true
         with:
-          aqua_version: v1.32.0
+          aqua_version: v2.21.3
           enable_aqua_install: true
-          aqua_opts: "--tags tests"
-          working_directory: ${{ env.HERE }}
+          aqua_opts: "--tags installfirst"
+          working-directory: ${{ env.HERE }}
+
+      - name: update-github-path-with-aqua
+        working-directory: ${{ env.HERE }}
+        run: |
+          echo  "${AQUA_ROOT_DIR:-${XDG_DATA_HOME:-$HOME/.local/share}/aquaproj-aqua}/bin/aqua" >> $GITHUB_PATH
+
+      - name: aqua-install-tooling
+        working-directory: ${{ env.HERE }}
+        run: |
+          aqua install --tags installfirst
+          aqua install --tags tests
 
       - name: Init
-        run: mage initCI ${{ matrix.ansible }}
         working-directory: ${{ env.HERE }}
+        run: mage initCI ${{ matrix.ansible }}
 
       - name: Unit
-        run: mage testUnit
         working-directory: ${{ env.HERE }}
+        run: mage testUnit
 
       - name: Sanity
-        run: mage testSanity
         working-directory: ${{ env.HERE }}
+        run: mage testSanity
 
       - uses: codecov/codecov-action@v3
         with:
           fail_ci_if_error: false
+          working-directory: ${{ env.HERE }}

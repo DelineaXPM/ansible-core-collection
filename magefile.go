@@ -24,7 +24,7 @@ import (
 
 const (
 	// AnsibleLatest defines the latest stable version we use and support.
-	AnsibleLatest = "stable-2.15"
+	AnsibleLatest = "stable-2.16"
 
 	// CacheDir is the directory to keep virtual environments (ignored by git).
 	CacheDir = ".cache"
@@ -37,6 +37,9 @@ const (
 
 	// DocDirectory is the directory to store documentation.
 	DocDirectory = "docs"
+
+	// PermissionUserReadWriteExecute is the permissions for the artifact directory.
+	PermissionUserReadWriteExecute = 0o0700
 )
 
 // ✨ Init unfolds initial environment for productive work.
@@ -228,7 +231,11 @@ func Changelog() error {
 		pterm.Error.Printfln("failed to get version from galaxy.yml:\n\t%v", err)
 		return err
 	}
-
+	changelogFragmentDirectory := filepath.Join("changelogs", "fragments")
+	if err := os.MkdirAll(changelogFragmentDirectory, PermissionUserReadWriteExecute); err != nil {
+		pterm.Error.Printfln("directory couldn't be created: %s", changelogFragmentDirectory)
+		return fmt.Errorf("could not create directory: %s", changelogFragmentDirectory)
+	}
 	changeFile := filepath.Join("changelogs", "fragments", current+".yml")
 	if _, err := os.Stat(changeFile); err == nil {
 		pterm.Error.Printfln("file %q already exists", changeFile)

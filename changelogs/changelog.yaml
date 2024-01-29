@@ -28,3 +28,9 @@ releases:
       - 1.1.0.yml
       - 39-support data filtering.yml
     release_date: "2023-10-17"
+  1.1.1:
+    changes:
+      release_summary: Add tests for ansible 2.16.
+    fragments:
+      - 1.1.1.yml
+    release_date: "2024-01-29"
