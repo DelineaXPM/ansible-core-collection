@@ -2,29 +2,33 @@ ancestor: null
 releases:
   1.0.0:
     changes:
-      release_summary:
-        "New plugin for getting secrets from Delinea DevOps Secrets
+      release_summary: 'New plugin for getting secrets from Delinea DevOps Secrets
         Vault in Ansible.
 
-        "
+        '
     fragments:
-      - 1.0.0.yml
+    - 1.0.0.yml
     plugins:
       lookup:
-        - description: Get secrets from Delinea DevOps Secrets Vault
-          name: dsv
-          namespace: null
-    release_date: "2022-08-30"
+      - description: Get secrets from Delinea DevOps Secrets Vault
+        name: dsv
+        namespace: null
+    release_date: '2022-08-30'
   1.1.0:
     changes:
       minor_changes:
-        - dsv lookup plugin - add optional ``data_key`` parameter for filtering secret
-          data.
-      release_summary:
-        New option to allow returning a specific key from the returned
+      - dsv lookup plugin - add optional ``data_key`` parameter for filtering secret
+        data.
+      release_summary: New option to allow returning a specific key from the returned
         data. If it's defined, but not found it will error, otherwise by default the
         entire secret object will be returned.
     fragments:
-      - 1.1.0.yml
-      - 39-support data filtering.yml
-    release_date: "2023-10-17"
+    - 1.1.0.yml
+    - 39-support data filtering.yml
+    release_date: '2023-10-17'
+  1.1.1:
+    changes:
+      release_summary: Add tests for ansible 2.16.
+    fragments:
+    - 1.1.1.yml
+    release_date: '2024-01-29'

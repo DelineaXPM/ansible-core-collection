@@ -5,6 +5,14 @@ Delinea.Core Release Notes
 .. contents:: Topics
 
 
+v1.1.1
+======
+
+Release Summary
+---------------
+
+Add tests for ansible 2.16.
+
 v1.1.0
 ======
 
